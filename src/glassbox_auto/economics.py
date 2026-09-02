@@ -30,7 +30,20 @@ def _minimum_grade(values: list[ObservedValue]) -> EvidenceGrade:
     return min((v.evidence.grade for v in values), key=lambda g: GRADE_RANK[g])
 
 
-def _derived_value(value: float | None, *, inputs: list[ObservedValue], unit: str, method: str) -> ObservedValue:
+def _derived_value(
+    value: float | None,
+    *,
+    inputs: list[ObservedValue],
+    unit: str,
+    method: str,
+    max_grade: EvidenceGrade | None = None,
+    extra_lineage: tuple[str, ...] = (),
+) -> ObservedValue:
+    lineage = tuple(dict.fromkeys(
+        source
+        for source in (*[v.evidence.source for v in inputs if v.evidence.source], *extra_lineage)
+        if source
+    ))
     if value is None:
         return ObservedValue(
             None,
@@ -39,16 +52,22 @@ def _derived_value(value: float | None, *, inputs: list[ObservedValue], unit: st
                 source=f"derived:{method}",
                 kind=EvidenceKind.DERIVED,
                 method=method,
+                lineage=lineage,
             ),
             unit=unit,
         )
+
+    grade = _minimum_grade(inputs)
+    if max_grade is not None and GRADE_RANK[grade] > GRADE_RANK[max_grade]:
+        grade = max_grade
     return ObservedValue(
         value,
         Evidence(
-            grade=_minimum_grade(inputs),
+            grade=grade,
             source=f"derived:{method}",
             kind=EvidenceKind.DERIVED,
             method=method,
+            lineage=lineage,
         ),
         unit=unit,
     )
@@ -93,6 +112,7 @@ def lease_economics(offer: AcquisitionOffer, profile: UserProfile) -> dict[str, 
     overage_cost = 0.0
     unused_km_value_loss = 0.0
     mileage_inputs: list[ObservedValue] = []
+    scenario_adjusted = False
 
     if profile.expected_annual_km is None:
         reasons.append("expected_annual_km_missing")
@@ -106,6 +126,7 @@ def lease_economics(offer: AcquisitionOffer, profile: UserProfile) -> dict[str, 
         expected_total_km = profile.expected_annual_km * years
         contracted_total_km = annual_km * years
         delta = expected_total_km - contracted_total_km
+        scenario_adjusted = delta != 0
         mileage_inputs = [offer.annual_km, offer.term_months]
 
         if delta > 0:
@@ -152,6 +173,8 @@ def lease_economics(offer: AcquisitionOffer, profile: UserProfile) -> dict[str, 
             inputs=total_inputs,
             unit=offer.currency,
             method="lease_total_adjusted_cost",
+            max_grade=EvidenceGrade.ESTIMATED if scenario_adjusted else None,
+            extra_lineage=("user_profile.expected_annual_km",) if scenario_adjusted else (),
         ),
     }
 
