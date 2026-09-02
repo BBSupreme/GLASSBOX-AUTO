@@ -62,6 +62,8 @@ def evaluate_candidate(vehicle: Vehicle, offer: AcquisitionOffer, profile: UserP
         reasons.append("failed_gate")
     if GateState.UNKNOWN in gate_states:
         reasons.append("decision_critical_unknown")
+    if any(r.reason == "unit_mismatch" for r in criterion_results if r.active):
+        reasons.append("unit_mismatch")
     if score is None:
         reasons.append("no_scorable_criteria")
 
@@ -95,7 +97,15 @@ def close_call_threshold(coverage: float) -> float:
     return 0.15 if coverage >= 0.95 else 0.20
 
 
+def _reset_ranking_state(candidate: CandidateResult) -> CandidateResult:
+    reasons = tuple(reason for reason in candidate.reasons if reason != "close_call")
+    readiness = Readiness.READY if candidate.eligibility == Eligibility.ELIGIBLE else Readiness.NOT_READY
+    return replace(candidate, close_call=False, readiness=readiness, reasons=reasons)
+
+
 def rank_candidates(candidates: list[CandidateResult]) -> list[CandidateResult]:
+    candidates = [_reset_ranking_state(candidate) for candidate in candidates]
+
     eligible_currencies = {c.currency for c in candidates if c.eligibility == Eligibility.ELIGIBLE}
     if len(eligible_currencies) > 1:
         raise ValueError("Cannot rank eligible candidates across currencies without explicit conversion")
