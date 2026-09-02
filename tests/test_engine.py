@@ -147,6 +147,13 @@ def test_must_have_cannot_be_gate_only():
         Criterion("x", "x", PreferenceLabel.MUST_HAVE, gate=GateDefinition(">=", 1))
 
 
+def test_positive_weight_unscored_criterion_rejected_but_zero_weight_gate_allowed():
+    with pytest.raises(ValueError):
+        Criterion("dead", "x", PreferenceLabel.MEDIUM)
+    gate_only = Criterion("gate", "x", PreferenceLabel.MEDIUM, gate=GateDefinition(">=", 1), base_weight=0)
+    assert gate_only.base_weight == 0
+
+
 def test_modeled_evidence_cannot_be_verified_and_verified_requires_source():
     with pytest.raises(ValueError):
         Evidence(EvidenceGrade.VERIFIED)
@@ -169,6 +176,15 @@ def test_lease_economics_reconciles_cash_and_mileage():
     assert econ["complete"] is True
 
 
+def test_scenario_adjusted_economics_is_estimated_and_has_lineage():
+    econ = lease_economics(lease_offer(), UserProfile("p", (), expected_annual_km=20000))
+    derived = econ["derived_attributes"]["economics.total_adjusted_cost"]
+    assert derived.evidence.grade == EvidenceGrade.ESTIMATED
+    assert derived.evidence.kind == EvidenceKind.DERIVED
+    assert "user_profile.expected_annual_km" in derived.evidence.lineage
+    assert "test" in derived.evidence.lineage
+
+
 def test_missing_overage_pricing_is_unknown_not_zero():
     offer = lease_offer(overage=None)
     econ = lease_economics(offer, UserProfile("p", (), expected_annual_km=20000))
@@ -186,6 +202,24 @@ def test_missing_unused_km_assumption_is_unknown_not_zero():
     assert "unused_km_value_per_km_missing" in econ["reasons"]
 
 
+def test_unknown_economic_evidence_blocks_completeness():
+    unknown = ObservedValue(4000, Evidence(EvidenceGrade.UNKNOWN), unit="DKK/month")
+    offer = AcquisitionOffer(
+        "o",
+        "v",
+        AcquisitionMode.LEASE_NEW,
+        term_months=obs(36, unit="month"),
+        annual_km=obs(15000, unit="km/year"),
+        upfront_payment=obs(10000, unit="DKK"),
+        recurring_payment=unknown,
+        mandatory_fees=obs(1000, unit="DKK"),
+        overage_cost_per_km=obs(2, unit="DKK/km"),
+    )
+    econ = lease_economics(offer, UserProfile("p", (), expected_annual_km=15000))
+    assert econ["complete"] is False
+    assert "recurring_payment_evidence_unknown" in econ["reasons"]
+
+
 def test_purchase_economics_fail_closed():
     offer = AcquisitionOffer("o1", "v1", AcquisitionMode.BUY_NEW)
     with pytest.raises(PurchaseMethodBlockedError):
@@ -198,6 +232,7 @@ def test_economics_enters_canonical_scoring_and_changes_ranking():
         "economics.total_adjusted_cost",
         PreferenceLabel.HIGH,
         anchors(250000, 180000, 120000, 0.8, UtilityDirection.LOWER_IS_BETTER),
+        unit="DKK",
     )
     profile = UserProfile("p", (economic,), expected_annual_km=15000)
     vehicle = Vehicle("v1", "M", "X", "A")
@@ -206,6 +241,16 @@ def test_economics_enters_canonical_scoring_and_changes_ranking():
     ranked = rank_candidates([expensive, cheap])
     assert ranked[0].offer_id == "cheap"
     assert cheap.score > expensive.score
+
+
+def test_criterion_unit_mismatch_blocks_candidate():
+    criterion = Criterion("range", "range", PreferenceLabel.HIGH, anchors(), unit="km")
+    profile = UserProfile("p", (criterion,), expected_annual_km=15000)
+    vehicle = Vehicle("v", "M", "X", "A", {"range": obs(500, unit="mi")})
+    result = evaluate_candidate(vehicle, lease_offer("o", "v"), profile)
+    assert result.eligibility == Eligibility.BLOCKED
+    assert "unit_mismatch" in result.reasons
+    assert result.criterion_results[0].reason == "unit_mismatch"
 
 
 def test_unknown_gate_candidate_cannot_outrank_pass_candidate():
@@ -260,18 +305,32 @@ def test_three_eligible_candidates_within_band_are_all_close_call():
     assert all(candidate.readiness == Readiness.NOT_READY for candidate in ranked[:3])
 
 
+def test_ranking_recomputes_close_call_state_idempotently():
+    c = Criterion("range", "range", PreferenceLabel.HIGH, anchors())
+    profile = UserProfile("p", (c,), expected_annual_km=15000)
+    vehicle = Vehicle("v", "M", "X", "A", {"range": obs(500)})
+    a = evaluate_candidate(vehicle, lease_offer("a", "v"), profile)
+    b = evaluate_candidate(vehicle, lease_offer("b", "v"), profile)
+    first = rank_candidates([a, b])
+    assert first[0].close_call is True
+    reranked = rank_candidates([first[0]])
+    assert reranked[0].close_call is False
+    assert reranked[0].readiness == Readiness.READY
+    assert "close_call" not in reranked[0].reasons
+
+
 def test_offer_vehicle_attribute_collision_rejected():
     vehicle = Vehicle("v", "M", "X", "A", {"range": obs(500)})
     offer = AcquisitionOffer(
         "o",
         "v",
         AcquisitionMode.LEASE_NEW,
-        term_months=obs(36),
-        annual_km=obs(15000),
-        upfront_payment=obs(10000),
-        recurring_payment=obs(4000),
-        mandatory_fees=obs(1000),
-        overage_cost_per_km=obs(2),
+        term_months=obs(36, unit="month"),
+        annual_km=obs(15000, unit="km/year"),
+        upfront_payment=obs(10000, unit="DKK"),
+        recurring_payment=obs(4000, unit="DKK/month"),
+        mandatory_fees=obs(1000, unit="DKK"),
+        overage_cost_per_km=obs(2, unit="DKK/km"),
         attributes={"range": obs(600)},
     )
     with pytest.raises(ValueError, match="collision"):
@@ -284,10 +343,21 @@ def test_negative_economics_inputs_rejected():
             "o",
             "v",
             AcquisitionMode.LEASE_NEW,
-            term_months=obs(36),
-            upfront_payment=obs(0),
-            recurring_payment=obs(-1),
-            mandatory_fees=obs(0),
+            term_months=obs(36, unit="month"),
+            upfront_payment=obs(0, unit="DKK"),
+            recurring_payment=obs(-1, unit="DKK/month"),
+            mandatory_fees=obs(0, unit="DKK"),
+        )
+
+
+def test_invalid_economic_unit_rejected():
+    with pytest.raises(ValueError, match="canonical unit"):
+        AcquisitionOffer(
+            "o",
+            "v",
+            AcquisitionMode.LEASE_NEW,
+            term_months=obs(36, unit="month"),
+            upfront_payment=obs(0, unit="EUR"),
         )
 
 
