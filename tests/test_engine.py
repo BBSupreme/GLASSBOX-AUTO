@@ -6,8 +6,10 @@ from glassbox_auto.models import (
     AcquisitionMode,
     AcquisitionOffer,
     Criterion,
+    Eligibility,
     Evidence,
     EvidenceGrade,
+    EvidenceKind,
     GateDefinition,
     GateState,
     ObservedValue,
@@ -22,8 +24,38 @@ from glassbox_auto.models import (
 from glassbox_auto.scoring import evaluate_gate, piecewise_utility, score_candidate
 
 
-def obs(value, grade=EvidenceGrade.VERIFIED):
-    return ObservedValue(value=value, evidence=Evidence(grade=grade, source="test"))
+def obs(value, grade=EvidenceGrade.VERIFIED, *, unit=None, kind=EvidenceKind.DIRECT):
+    source = "test" if grade == EvidenceGrade.VERIFIED else "test-estimate"
+    return ObservedValue(value=value, evidence=Evidence(grade=grade, source=source, kind=kind), unit=unit)
+
+
+def lease_offer(
+    offer_id="o1",
+    vehicle_id="v1",
+    *,
+    monthly=4000,
+    annual_km=15000,
+    overage=2.0,
+    upfront=10000,
+    fees=1000,
+    currency="DKK",
+):
+    return AcquisitionOffer(
+        offer_id,
+        vehicle_id,
+        AcquisitionMode.LEASE_NEW,
+        currency=currency,
+        term_months=obs(36, unit="month"),
+        annual_km=obs(annual_km, unit="km/year"),
+        upfront_payment=obs(upfront, unit=currency),
+        recurring_payment=obs(monthly, unit=f"{currency}/month"),
+        mandatory_fees=obs(fees, unit=currency),
+        overage_cost_per_km=obs(overage, unit=f"{currency}/km") if overage is not None else None,
+    )
+
+
+def anchors(floor=200, need=400, stretch=600, need_utility=0.8, direction=UtilityDirection.HIGHER_IS_BETTER):
+    return UtilityAnchors(floor, need, stretch, need_utility, direction)
 
 
 def test_binding_preference_multipliers():
@@ -36,37 +68,70 @@ def test_binding_preference_multipliers():
     }
 
 
-def test_piecewise_higher_boundaries():
-    a = UtilityAnchors(100, 200, 300)
-    assert piecewise_utility(100, a) == 0
-    assert piecewise_utility(200, a) == pytest.approx(0.8)
-    assert piecewise_utility(300, a) == 1
-    assert piecewise_utility(150, a) == pytest.approx(0.4)
+def test_need_utility_is_explicit_and_changes_curve():
+    a = anchors(100, 200, 300, 0.6)
+    assert piecewise_utility(200, a) == pytest.approx(0.6)
+    assert piecewise_utility(150, a) == pytest.approx(0.3)
+    with pytest.raises(TypeError):
+        UtilityAnchors(100, 200, 300)
 
 
 def test_piecewise_lower_boundaries():
-    a = UtilityAnchors(300, 200, 100, UtilityDirection.LOWER_IS_BETTER)
+    a = anchors(300, 200, 100, 0.75, UtilityDirection.LOWER_IS_BETTER)
     assert piecewise_utility(300, a) == 0
-    assert piecewise_utility(200, a) == pytest.approx(0.8)
+    assert piecewise_utility(200, a) == pytest.approx(0.75)
     assert piecewise_utility(100, a) == 1
 
 
 def test_missing_data_excluded_from_score_but_reduces_coverage():
     criteria = (
-        Criterion("range", "range", PreferenceLabel.HIGH, UtilityAnchors(200, 400, 600)),
-        Criterion("cargo", "cargo", PreferenceLabel.HIGH, UtilityAnchors(300, 500, 700)),
+        Criterion("range", "range", PreferenceLabel.HIGH, anchors()),
+        Criterion("cargo", "cargo", PreferenceLabel.HIGH, anchors(300, 500, 700)),
     )
-    score, coverage, results = score_candidate(criteria, {"range": obs(600)})
+    score, data_coverage, evidence_coverage, results = score_candidate(criteria, {"range": obs(600)})
     assert score == pytest.approx(10.0)
-    assert coverage == pytest.approx(0.5)
+    assert data_coverage == pytest.approx(0.5)
+    assert evidence_coverage == pytest.approx(0.5)
     assert results[1].utility is None
 
 
-def test_unknown_evidence_is_uncovered_and_unscored():
-    criteria = (Criterion("range", "range", PreferenceLabel.HIGH, UtilityAnchors(200, 400, 600)),)
-    score, coverage, _ = score_candidate(criteria, {"range": obs(600, EvidenceGrade.UNKNOWN)})
+def test_insufficient_evidence_not_counted_as_decision_sufficient_coverage():
+    criteria = (
+        Criterion("range", "range", PreferenceLabel.HIGH, anchors(), minimum_evidence=EvidenceGrade.VERIFIED),
+    )
+    score, data_coverage, evidence_coverage, _ = score_candidate(
+        criteria,
+        {"range": obs(600, EvidenceGrade.ESTIMATED)},
+    )
     assert score is None
-    assert coverage == 0
+    assert data_coverage == 1.0
+    assert evidence_coverage == 0.0
+
+
+def test_inactive_weight_remains_visible():
+    criteria = (
+        Criterion("active", "a", PreferenceLabel.HIGH, anchors()),
+        Criterion("inactive", "b", PreferenceLabel.VERY_HIGH, anchors(), active=False),
+    )
+    _, _, _, results = score_candidate(criteria, {"a": obs(600), "b": obs(600)})
+    assert len(results) == 2
+    assert results[1].active is False
+    assert results[1].reason == "inactive"
+    assert results[1].normalized_weight == 0.0
+
+
+def test_explicit_weighting_supports_dimensions_subweights_and_caps():
+    criteria = (
+        Criterion("baggage_main", "a", PreferenceLabel.MEDIUM, anchors(), dimension="family", base_weight=8),
+        Criterion("baggage_extra", "b", PreferenceLabel.MEDIUM, anchors(), dimension="family", base_weight=2),
+        Criterion("safety", "s", PreferenceLabel.MEDIUM, anchors(), dimension="family", base_weight=10, weight_cap=3),
+    )
+    profile = UserProfile("p", criteria, dimension_weights={"family": 2.0})
+    _, _, _, results = score_candidate(criteria, {"a": obs(600), "b": obs(600), "s": obs(600)}, profile.dimension_weights)
+    weights = {r.criterion_id: r.weight for r in results}
+    assert weights["baggage_main"] == 16
+    assert weights["baggage_extra"] == 4
+    assert weights["safety"] == 3
 
 
 def test_gate_pass_fail_unknown_and_evidence_threshold():
@@ -77,10 +142,16 @@ def test_gate_pass_fail_unknown_and_evidence_threshold():
     assert evaluate_gate(obs(600, EvidenceGrade.ESTIMATED), gate) == GateState.UNKNOWN
 
 
-def test_must_have_requires_gate():
-    criteria = (Criterion("x", "x", PreferenceLabel.MUST_HAVE, UtilityAnchors(0, 1, 2)),)
+def test_must_have_cannot_be_gate_only():
     with pytest.raises(ValueError):
-        score_candidate(criteria, {"x": obs(2)})
+        Criterion("x", "x", PreferenceLabel.MUST_HAVE, gate=GateDefinition(">=", 1))
+
+
+def test_modeled_evidence_cannot_be_verified_and_verified_requires_source():
+    with pytest.raises(ValueError):
+        Evidence(EvidenceGrade.VERIFIED)
+    with pytest.raises(ValueError):
+        Evidence(EvidenceGrade.VERIFIED, source="model", kind=EvidenceKind.MODELED)
 
 
 def test_close_call_boundary():
@@ -89,25 +160,30 @@ def test_close_call_boundary():
 
 
 def test_lease_economics_reconciles_cash_and_mileage():
-    offer = AcquisitionOffer(
-        "o1", "v1", AcquisitionMode.LEASE_NEW,
-        term_months=36, annual_km=15000,
-        upfront_payment=10000, recurring_payment=4000, mandatory_fees=1000,
-        overage_cost_per_km=2.0,
-    )
+    offer = lease_offer()
     profile = UserProfile("p", (), expected_annual_km=20000)
     econ = lease_economics(offer, profile)
     assert econ["base_cash_cost"] == 155000
     assert econ["overage_cost"] == 30000
     assert econ["total_adjusted_cost"] == 185000
+    assert econ["complete"] is True
 
 
-def test_unused_km_loss_only_when_assumption_supplied():
-    offer = AcquisitionOffer("o1", "v1", AcquisitionMode.LEASE_NEW, term_months=36, annual_km=15000)
-    no_value = lease_economics(offer, UserProfile("p", (), expected_annual_km=10000))
-    with_value = lease_economics(offer, UserProfile("p", (), expected_annual_km=10000, unused_km_value_per_km=1.0))
-    assert no_value["unused_km_value_loss"] == 0
-    assert with_value["unused_km_value_loss"] == 15000
+def test_missing_overage_pricing_is_unknown_not_zero():
+    offer = lease_offer(overage=None)
+    econ = lease_economics(offer, UserProfile("p", (), expected_annual_km=20000))
+    assert econ["overage_cost"] is None
+    assert econ["total_adjusted_cost"] is None
+    assert econ["complete"] is False
+    assert "overage_cost_per_km_missing" in econ["reasons"]
+
+
+def test_missing_unused_km_assumption_is_unknown_not_zero():
+    offer = lease_offer()
+    econ = lease_economics(offer, UserProfile("p", (), expected_annual_km=10000))
+    assert econ["unused_km_value_loss"] is None
+    assert econ["total_adjusted_cost"] is None
+    assert "unused_km_value_per_km_missing" in econ["reasons"]
 
 
 def test_purchase_economics_fail_closed():
@@ -116,27 +192,124 @@ def test_purchase_economics_fail_closed():
         lease_economics(offer, UserProfile("p", ()))
 
 
-def test_failed_gate_blocks_readiness():
-    vehicle = Vehicle("v1", "Make", "Model", "Variant", {"cargo": obs(400)})
+def test_economics_enters_canonical_scoring_and_changes_ranking():
+    economic = Criterion(
+        "cost",
+        "economics.total_adjusted_cost",
+        PreferenceLabel.HIGH,
+        anchors(250000, 180000, 120000, 0.8, UtilityDirection.LOWER_IS_BETTER),
+    )
+    profile = UserProfile("p", (economic,), expected_annual_km=15000)
+    vehicle = Vehicle("v1", "M", "X", "A")
+    cheap = evaluate_candidate(vehicle, lease_offer("cheap", monthly=3000), profile)
+    expensive = evaluate_candidate(vehicle, lease_offer("expensive", monthly=5000), profile)
+    ranked = rank_candidates([expensive, cheap])
+    assert ranked[0].offer_id == "cheap"
+    assert cheap.score > expensive.score
+
+
+def test_unknown_gate_candidate_cannot_outrank_pass_candidate():
     criterion = Criterion(
-        "cargo", "cargo", PreferenceLabel.MUST_HAVE,
-        UtilityAnchors(300, 500, 700), GateDefinition(">=", 500),
+        "cargo",
+        "cargo",
+        PreferenceLabel.MUST_HAVE,
+        anchors(300, 500, 700),
+        GateDefinition(">=", 500, EvidenceGrade.VERIFIED),
     )
-    result = evaluate_candidate(
-        vehicle,
-        AcquisitionOffer("o1", "v1", AcquisitionMode.LEASE_NEW, term_months=36),
-        UserProfile("p", (criterion,)),
-    )
-    assert result.readiness == Readiness.NOT_READY
-    assert "failed_gate" in result.reasons
+    profile = UserProfile("p", (criterion,), expected_annual_km=15000)
+    pass_vehicle = Vehicle("pass", "M", "X", "A", {"cargo": obs(600)})
+    unknown_vehicle = Vehicle("unknown", "M", "X", "A", {"cargo": obs(700, EvidenceGrade.ESTIMATED)})
+    passed = evaluate_candidate(pass_vehicle, lease_offer("o", "pass"), profile)
+    unknown = evaluate_candidate(unknown_vehicle, lease_offer("o", "unknown"), profile)
+    ranked = rank_candidates([unknown, passed])
+    assert passed.eligibility == Eligibility.ELIGIBLE
+    assert unknown.eligibility == Eligibility.BLOCKED
+    assert ranked[0].candidate_id.startswith("pass:")
 
 
-def test_deterministic_tie_uses_candidate_id():
-    c = Criterion("range", "range", PreferenceLabel.HIGH, UtilityAnchors(200, 400, 600))
-    profile = UserProfile("p", (c,))
+def test_purchase_blocked_candidate_cannot_rank_first():
+    c = Criterion("range", "range", PreferenceLabel.HIGH, anchors())
+    profile = UserProfile("p", (c,), expected_annual_km=15000)
     vehicle = Vehicle("v", "M", "X", "A", {"range": obs(500)})
-    a = evaluate_candidate(vehicle, AcquisitionOffer("a", "v", AcquisitionMode.LEASE_NEW, term_months=36), profile)
-    b = evaluate_candidate(vehicle, AcquisitionOffer("b", "v", AcquisitionMode.LEASE_NEW, term_months=36), profile)
+    lease = evaluate_candidate(vehicle, lease_offer("lease", "v"), profile)
+    purchase = evaluate_candidate(vehicle, AcquisitionOffer("buy", "v", AcquisitionMode.BUY_NEW), profile)
+    ranked = rank_candidates([purchase, lease])
+    assert purchase.eligibility == Eligibility.BLOCKED
+    assert ranked[0].offer_id == "lease"
+
+
+def test_failed_candidate_cannot_create_close_call():
+    c = Criterion("cargo", "cargo", PreferenceLabel.MUST_HAVE, anchors(300, 500, 700), GateDefinition(">=", 500))
+    profile = UserProfile("p", (c,), expected_annual_km=15000)
+    leader = evaluate_candidate(Vehicle("a", "M", "X", "A", {"cargo": obs(600)}), lease_offer("o", "a"), profile)
+    failed = evaluate_candidate(Vehicle("b", "M", "X", "A", {"cargo": obs(499)}), lease_offer("o", "b"), profile)
+    ranked = rank_candidates([leader, failed])
+    assert ranked[0].close_call is False
+    assert failed.eligibility == Eligibility.FAILED
+
+
+def test_three_eligible_candidates_within_band_are_all_close_call():
+    c = Criterion("score", "score", PreferenceLabel.HIGH, anchors(0, 5, 10, 0.8))
+    profile = UserProfile("p", (c,), expected_annual_km=15000)
+    results = []
+    for vid, value in [("a", 9.00), ("b", 8.90), ("c", 8.85)]:
+        vehicle = Vehicle(vid, "M", "X", "A", {"score": obs(value)})
+        results.append(evaluate_candidate(vehicle, lease_offer("o", vid), profile))
+    ranked = rank_candidates(results)
+    assert all(candidate.close_call for candidate in ranked[:3])
+    assert all(candidate.readiness == Readiness.NOT_READY for candidate in ranked[:3])
+
+
+def test_offer_vehicle_attribute_collision_rejected():
+    vehicle = Vehicle("v", "M", "X", "A", {"range": obs(500)})
+    offer = AcquisitionOffer(
+        "o",
+        "v",
+        AcquisitionMode.LEASE_NEW,
+        term_months=obs(36),
+        annual_km=obs(15000),
+        upfront_payment=obs(10000),
+        recurring_payment=obs(4000),
+        mandatory_fees=obs(1000),
+        overage_cost_per_km=obs(2),
+        attributes={"range": obs(600)},
+    )
+    with pytest.raises(ValueError, match="collision"):
+        evaluate_candidate(vehicle, offer, UserProfile("p", (Criterion("range", "range", PreferenceLabel.HIGH, anchors()),), expected_annual_km=15000))
+
+
+def test_negative_economics_inputs_rejected():
+    with pytest.raises(ValueError):
+        AcquisitionOffer(
+            "o",
+            "v",
+            AcquisitionMode.LEASE_NEW,
+            term_months=obs(36),
+            upfront_payment=obs(0),
+            recurring_payment=obs(-1),
+            mandatory_fees=obs(0),
+        )
+
+
+def test_cross_currency_eligible_ranking_rejected():
+    c = Criterion("range", "range", PreferenceLabel.HIGH, anchors())
+    profile = UserProfile("p", (c,), expected_annual_km=15000)
+    vehicle = Vehicle("v", "M", "X", "A", {"range": obs(500)})
+    dkk = evaluate_candidate(vehicle, lease_offer("dkk", "v", currency="DKK"), profile)
+    eur = evaluate_candidate(vehicle, lease_offer("eur", "v", currency="EUR"), profile)
+    with pytest.raises(ValueError, match="currencies"):
+        rank_candidates([dkk, eur])
+
+
+def test_deterministic_tie_uses_candidate_id_and_close_call_blocks_both():
+    c = Criterion("range", "range", PreferenceLabel.HIGH, anchors())
+    profile = UserProfile("p", (c,), expected_annual_km=15000)
+    vehicle = Vehicle("v", "M", "X", "A", {"range": obs(500)})
+    a = evaluate_candidate(vehicle, lease_offer("a", "v"), profile)
+    b = evaluate_candidate(vehicle, lease_offer("b", "v"), profile)
     ranked = rank_candidates([b, a])
     assert ranked[0].candidate_id.endswith(":a")
     assert ranked[0].close_call is True
+    assert ranked[1].close_call is True
+    assert ranked[0].readiness == Readiness.NOT_READY
+    assert ranked[1].readiness == Readiness.NOT_READY
