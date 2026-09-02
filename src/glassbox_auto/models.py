@@ -76,6 +76,7 @@ class Evidence:
     notes: str | None = None
     kind: EvidenceKind = EvidenceKind.DIRECT
     method: str | None = None
+    lineage: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if self.grade == EvidenceGrade.VERIFIED and not self.source:
@@ -123,6 +124,12 @@ class AcquisitionOffer:
         _validate_observed_number(self.recurring_payment, "recurring_payment", non_negative=True)
         _validate_observed_number(self.mandatory_fees, "mandatory_fees", non_negative=True)
         _validate_observed_number(self.overage_cost_per_km, "overage_cost_per_km", non_negative=True)
+        _validate_unit(self.term_months, "term_months", "month")
+        _validate_unit(self.annual_km, "annual_km", "km/year")
+        _validate_unit(self.upfront_payment, "upfront_payment", self.currency)
+        _validate_unit(self.recurring_payment, "recurring_payment", f"{self.currency}/month")
+        _validate_unit(self.mandatory_fees, "mandatory_fees", self.currency)
+        _validate_unit(self.overage_cost_per_km, "overage_cost_per_km", f"{self.currency}/km")
 
 
 @dataclass(frozen=True)
@@ -158,6 +165,7 @@ class Criterion:
     base_weight: float = 1.0
     subweight: float = 1.0
     weight_cap: float | None = None
+    unit: str | None = None
 
     def __post_init__(self) -> None:
         if self.base_weight < 0 or self.subweight < 0:
@@ -170,8 +178,15 @@ class Criterion:
             if self.anchors is None:
                 raise ValueError(
                     f"Must-have criterion {self.criterion_id} requires utility anchors; "
-                    "use a separately modeled gate-only construct if weighting is not intended"
+                    "use a zero-weight gate-only criterion if weighting is not intended"
                 )
+        if self.active and self.anchors is None and self.base_weight > 0:
+            raise ValueError(
+                f"Active weighted criterion {self.criterion_id} requires utility anchors; "
+                "set base_weight=0 for an explicit gate-only criterion"
+            )
+        if self.active and self.anchors is None and self.gate is None:
+            raise ValueError(f"Active unscored criterion {self.criterion_id} requires a gate")
 
 
 @dataclass(frozen=True)
@@ -188,11 +203,7 @@ class UserProfile:
         for dimension, weight in self.dimension_weights.items():
             if weight < 0:
                 raise ValueError(f"dimension weight must be non-negative: {dimension}")
-        _validate_observed_number(
-            self.unused_km_value_per_km,
-            "unused_km_value_per_km",
-            non_negative=True,
-        )
+        _validate_observed_number(self.unused_km_value_per_km, "unused_km_value_per_km", non_negative=True)
 
 
 @dataclass(frozen=True)
@@ -243,3 +254,10 @@ def _validate_observed_number(
         raise ValueError(f"{field_name} must be > 0")
     if non_negative and value < 0:
         raise ValueError(f"{field_name} must be >= 0")
+
+
+def _validate_unit(observed: ObservedValue | None, field_name: str, expected_unit: str) -> None:
+    if observed is None or observed.value is None:
+        return
+    if observed.unit != expected_unit:
+        raise ValueError(f"{field_name} requires canonical unit {expected_unit!r}, got {observed.unit!r}")
