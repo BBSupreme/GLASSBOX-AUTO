@@ -10,6 +10,7 @@ from .models import (
     GateState,
     ObservedValue,
     PREFERENCE_MULTIPLIERS,
+    PreferenceLabel,
     UtilityAnchors,
     UtilityDirection,
 )
@@ -66,6 +67,10 @@ def _effective_weight(criterion: Criterion, dimension_weights: dict[str, float])
     weight = criterion.base_weight * criterion.subweight * dimension_weight * PREFERENCE_MULTIPLIERS[criterion.preference]
     if criterion.weight_cap is not None:
         weight = min(weight, criterion.weight_cap)
+    if criterion.preference == PreferenceLabel.MUST_HAVE and criterion.active and weight <= 0:
+        raise ValueError(
+            f"Must-have criterion {criterion.criterion_id} must retain a positive effective weight in addition to its gate"
+        )
     return weight
 
 
