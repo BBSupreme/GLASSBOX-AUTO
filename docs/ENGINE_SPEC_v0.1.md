@@ -1,235 +1,257 @@
 # GLASSBOX-AUTO Engine v0.1 — Implementation Specification
 
-**Status:** implementation candidate  
+**Status:** implementation candidate under adversarial review  
 **Date:** 2026-09-02  
-**Scope:** canonical decision engine for vehicle/acquisition comparison
+**Scope:** headless decision engine for vehicle/acquisition comparison
 
-## 1. Objective
+## 1. Objective and compliance boundary
 
 Build an implementation-independent, deterministic decision engine whose outputs can be audited from source evidence through to recommendation.
 
-The engine MUST preserve the binding v3 Revision A semantics documented in `DECISIONS.md` and `METHOD.md`. Excel is a reference interface, not the source of truth.
+The engine implements the binding semantics documented in `DECISIONS.md` and `METHOD.md` where those semantics are known. It MUST NOT invent missing historical v3 profile values or unresolved purchase assumptions. Exact v3 profile reproduction remains pending the original v3.2.1 workbook/harness and anchor recovery tracked in Issue #1.
+
+Excel is a reference interface, not the source of truth.
 
 ## 2. Canonical entities
 
 ### Vehicle
-Stable facts about a car/configuration. A vehicle MUST NOT contain offer-specific economics.
-
-Required identity fields:
-- `vehicle_id`
-- `make`
-- `model`
-- `variant`
-
-Optional fact fields are stored in `attributes`, each as an `ObservedValue` with evidence metadata.
+Stable facts about a car/configuration. Vehicle facts MUST NOT contain offer-specific economics.
 
 ### AcquisitionOffer
-A concrete way to acquire a vehicle.
+A concrete acquisition offer linked to one Vehicle. Modes:
 
-Required fields:
-- `offer_id`
-- `vehicle_id`
-- `mode`: `LEASE_NEW | BUY_NEW | BUY_USED`
-- `currency`
+- `LEASE_NEW`
+- `BUY_NEW`
+- `BUY_USED`
 
-Lease fields include term, annual contracted km, upfront payment, recurring payment, mandatory fees and optional overage assumptions.
-
-Purchase fields may be represented structurally in v0.1, but decision-ready purchase economics are BLOCKED until the original P1–P3 findings and economics anchors are recovered.
+Decision-critical lease fields — term, annual km, upfront payment, recurring payment, mandatory fees and overage rate — are `ObservedValue`s with field-level evidence and optional units.
 
 ### UserProfile
-Contains explicit criteria and scenario inputs.
+Contains criteria, scenario inputs and explicit weighting structure.
 
-Each criterion declares:
-- `criterion_id`
-- `attribute`
-- preference label
-- utility anchors/direction
-- optional must-have gate
-- minimum evidence requirement
+A criterion can declare:
+
+- preference label;
+- Floor / Need / Stretch utility anchors;
+- explicit `need_utility`;
+- gate definition;
+- minimum evidence requirement;
+- dimension;
+- base weight;
+- subweight;
+- optional weight cap.
+
+Dimension weights are profile inputs. This makes the engine capable of representing established v3 structures such as editable Family subweights, an 8+2 baggage split and capped safety evidence without hard-coding the missing historical profile values into the engine.
 
 ### DecisionCandidate
-A derived comparison object linking one Vehicle, one AcquisitionOffer and one UserProfile evaluation.
+A derived object containing score, gate states, criterion contributions, data coverage, decision-sufficient evidence coverage, economics, eligibility, readiness, close-call state and reasons.
 
-It contains:
-- gate results
-- criterion results
-- weighted score
-- evidence-weight coverage
-- excluded/inert criteria
-- readiness state
-- economics output
+## 3. Evidence contract
 
-### Evidence
-Every observed input can carry:
-- `grade`: `UNKNOWN | ESTIMATED | VERIFIED`
-- `source`
-- `as_of`
-- `notes`
+Evidence grades:
 
-Model-derived values MUST NOT self-promote to VERIFIED.
+- `UNKNOWN`
+- `ESTIMATED`
+- `VERIFIED`
 
-## 3. Preference multipliers
+Evidence kinds:
 
-Binding mapping:
+- `DIRECT`
+- `DERIVED`
+- `MODELED`
 
-| label | multiplier | gate |
+Rules:
+
+1. VERIFIED evidence requires a source.
+2. MODELED evidence cannot be VERIFIED.
+3. Derived deterministic values carry derivation metadata and inherit the weakest evidence grade among their required inputs.
+4. Data presence and decision-sufficient evidence are separate concepts.
+5. A criterion is decision-sufficient only when its evidence meets that criterion's declared minimum grade.
+
+## 4. Preference and weighting semantics
+
+Binding label multipliers remain:
+
+| Label | Multiplier | Gate |
 |---|---:|---|
-| LOW | 0.5 | no |
-| MEDIUM | 1.0 | no |
-| HIGH | 1.5 | no |
-| VERY_HIGH | 2.0 | no |
-| MUST_HAVE | 2.0 | yes |
+| LOW | 0.5 | No |
+| MEDIUM | 1.0 | No |
+| HIGH | 1.5 | No |
+| VERY_HIGH | 2.0 | No |
+| MUST_HAVE | 2.0 | Yes |
 
-Weights are normalized over active criteria that have scorable data.
+Effective criterion weight is derived from explicit profile structure:
 
-Missing data:
-- MUST NOT become a zero utility;
-- MUST be excluded from the scored denominator;
-- MUST reduce evidence-weight coverage;
-- MAY make the result not ready where decision-critical.
+`base_weight × subweight × dimension_weight × label_multiplier`
 
-## 4. Utility
+An optional criterion cap is then applied.
 
-v0.1 supports deterministic piecewise-linear utility using explicit `floor`, `need`, and `stretch` anchors.
+Only active and scorable criteria enter the score denominator. Inactive and excluded criteria MUST remain visible in `CriterionResult` with zero normalized contribution.
+
+## 5. Utility
+
+Utility uses explicit piecewise-linear Floor / Need / Stretch anchors. `need_utility` is mandatory configuration because the currently available binding documents do not establish a canonical numerical value for utility at Need.
 
 For `HIGHER_IS_BETTER`:
-- value <= floor => 0
-- floor..need => linear 0..0.8
-- need..stretch => linear 0.8..1.0
-- value >= stretch => 1.0
 
-For `LOWER_IS_BETTER`, the curve is mirrored.
+- value <= Floor => 0
+- Floor..Need => linear 0..`need_utility`
+- Need..Stretch => linear `need_utility`..1
+- value >= Stretch => 1
 
-Anchors MUST satisfy the direction-specific ordering rules. No hidden anchors are allowed.
+`LOWER_IS_BETTER` mirrors the curve.
 
-## 5. Gates
+No hidden utility anchor is permitted.
 
-A must-have criterion is both weighted at 2.0 and evaluated as a decision-critical gate.
+## 6. Gates and eligibility
 
 Gate states:
+
 - `PASS`
 - `FAIL`
 - `UNKNOWN`
 
-A gate operational definition MUST specify:
-- attribute
-- operator
-- threshold/expected value
-- minimum evidence grade
+Missing data or insufficient evidence returns UNKNOWN, not FAIL.
 
-Missing values or insufficient evidence return UNKNOWN, not FAIL.
+A MUST_HAVE criterion MUST contain both:
 
-Any FAIL makes the candidate `NOT_READY`. Any decision-critical UNKNOWN makes the candidate `NOT_READY`.
+1. an operational gate; and
+2. a scoring definition with utility anchors.
 
-## 6. Evidence-weight coverage
+This preserves Must-have = Very High weight + gate. Gate-only rules must be modeled separately rather than silently removing the weighting component.
 
-Coverage is calculated over all active criterion base weights:
+Candidate eligibility is separate from score:
 
-`covered_weight / total_active_weight`
+- `ELIGIBLE` — no failed gate and no decision-critical blocker;
+- `BLOCKED` — unresolved gate, incomplete economics, purchase-method blocker, no score, or another decision-critical unknown;
+- `FAILED` — at least one failed gate.
 
-A criterion is covered when a value exists and its evidence grade is not UNKNOWN.
+Only ELIGIBLE candidates can be promoted or participate in close-call formation.
 
-This metric is separate from the normalized score denominator.
+## 7. Coverage
 
-## 7. Ranking and close calls
+Two weighted coverage measures are exposed:
 
-Candidates are ordered deterministically by:
-1. gate eligibility (`FAIL` last)
-2. score descending
-3. evidence coverage descending
-4. `candidate_id` ascending
+### Data coverage
+Weight share where a value is present.
 
-Close-call threshold:
-- `0.20` score points when evidence-weight coverage < 95%
-- `0.15` score points when coverage >= 95%
+### Evidence coverage
+Weight share where a value is present **and** meets the criterion's minimum evidence requirement.
 
-The engine stores score internally on a 0–10 scale so the historical v3 thresholds remain directly interpretable.
+The close-call 95% boundary uses decision-sufficient evidence coverage, not mere data presence.
 
-A top-two difference within the applicable threshold is a close call and blocks `READY` status for the recommendation surface.
+## 8. Lease economics and scoring integration
 
-## 8. Lease economics
+Lease economics calculates:
 
-v0.1 implements transparent lease cash economics:
+`base_cash_cost = upfront + recurring_payment × months + mandatory_fees`
 
-`base_cash_cost = upfront + recurring_payment * months + mandatory_fees`
+Mileage treatment compares expected annual km with contracted annual km over the lease term.
 
-Mileage adjustment supports:
-- expected km above contracted km, if `overage_cost_per_km` is provided;
-- expected km below contracted km as explicit `unused_km_value_loss`, using a caller-supplied value-per-unused-km assumption.
+If expected km exceeds the contract and no overage rate is available, overage cost is `None/UNKNOWN`, not zero.
 
-No default monetary value for unused km is invented by the engine.
+If expected km is below the contract and no explicit unused-km value assumption is supplied, unused-km value loss is `None/UNKNOWN`, not zero.
 
-Outputs expose every component.
+Decision-relevant unknown mileage pricing blocks readiness.
 
-## 9. Purchase economics
+The economics layer publishes provenance-bearing derived attributes such as:
 
-Architecture is present but production evaluation is deliberately blocked.
+- `economics.base_cash_cost`
+- `economics.total_adjusted_cost`
 
-The engine MUST raise `PurchaseMethodBlockedError` for `BUY_NEW` and `BUY_USED` economics until:
+These enter the same canonical criterion pipeline as vehicle and offer attributes. A profile can therefore weight and score economics without frontend duplication of business logic.
+
+## 9. Entity separation
+
+Vehicle and offer attributes may not silently overwrite each other. Attribute-key collisions are rejected. Derived economics attributes are also collision-checked.
+
+Future schema namespacing may make the domains explicit, but silent overwrite is prohibited in v0.1.
+
+## 10. Ranking and close calls
+
+Display order is deterministic:
+
+1. `ELIGIBLE`
+2. `BLOCKED`
+3. `FAILED`
+4. score descending within eligibility class
+5. evidence coverage descending
+6. `candidate_id` ascending
+
+Blocked or failed candidates cannot become recommendation leaders by score alone.
+
+The internal score remains on a 0–10 scale for compatibility with the historical close-call bands:
+
+- gap <= 0.20 when pairwise evidence coverage < 95%;
+- gap <= 0.15 when pairwise evidence coverage >= 95%.
+
+For each eligible contender, pairwise coverage is the conservative minimum of leader and contender decision-sufficient evidence coverage.
+
+The leader is checked against **all eligible contenders**, not only row #2. Every eligible candidate within the falsification band is marked close-call and NOT_READY at recommendation level.
+
+## 11. Currency and validation
+
+Economic inputs reject invalid negative domains; lease term must be positive.
+
+Eligible candidates in different currencies cannot be ranked together without an explicit conversion layer. v0.1 does not invent exchange rates.
+
+Observed values can carry units so future schema/mapping QA can detect unit coercion rather than relying on implicit conventions.
+
+## 12. Purchase economics
+
+`BUY_NEW` and `BUY_USED` remain method-blocked.
+
+Do not implement decision-ready purchase economics until:
+
 1. original P1–P3 findings are imported and resolved;
-2. economics Floor/Need/Stretch anchors are imported;
+2. economics Floor / Need / Stretch anchors are recovered;
 3. residual scenarios and break-even residual logic are validated;
 4. financing cash-flow and economic-cost reconciliation tests exist.
 
-This prevents accidental implementation-by-assumption.
+Loan principal remains explicitly separate from economic cost.
 
-## 10. Readiness
+## 13. QA acceptance criteria
 
-Candidate readiness values:
-- `READY`
-- `NOT_READY`
+CI MUST include falsification tests for at least:
 
-`NOT_READY` if any of the following apply:
-- failed gate;
-- decision-critical unknown gate;
-- no scorable criteria;
-- purchase mode is method-blocked.
-
-Ranking-level readiness additionally becomes not-ready for a close call.
-
-Completeness alone is not a readiness condition.
-
-## 11. API surface
-
-Primary package: `glassbox_auto`
-
-Public functions/classes:
-- schemas from `models.py`
-- `piecewise_utility()`
-- `evaluate_gate()`
-- `score_candidate()`
-- `lease_economics()`
-- `evaluate_candidate()`
-- `rank_candidates()`
-
-No frontend-specific logic is permitted in the package.
-
-## 12. QA acceptance criteria
-
-v0.1 CI MUST verify:
 - label multiplier mapping;
-- missing-data denominator behavior;
-- evidence coverage behavior;
-- utility anchor boundaries;
-- gate pass/fail/unknown/evidence behavior;
-- deterministic tie ordering;
+- explicit Need utility;
+- missing-data score denominator;
+- data coverage vs evidence coverage;
+- inactive/excluded weight visibility;
+- dimension/base/subweight/cap representation;
+- gate PASS/FAIL/UNKNOWN and evidence thresholds;
+- MUST_HAVE cannot be gate-only;
+- MODELED cannot be VERIFIED;
 - 94.9% / 95.0% close-call boundary;
-- lease cash-cost reconciliation;
-- overage calculation;
-- unused-km value-loss calculation only when supplied;
-- purchase economics fail closed.
+- UNKNOWN-gate candidate cannot outrank PASS candidate;
+- purchase-blocked candidate cannot rank first;
+- failed/blocked candidate cannot create close call;
+- three or more eligible candidates inside falsification band;
+- economics-derived cost changes ranking when configured as a criterion;
+- lease cash reconciliation;
+- missing overage pricing is UNKNOWN, not zero;
+- missing unused-km value assumption is UNKNOWN, not zero;
+- vehicle/offer attribute collision rejection;
+- negative economics input rejection;
+- cross-currency eligible ranking rejection;
+- deterministic final tie ordering.
 
-Excel/LibreOffice compatibility remains a release requirement for the workbook frontend, not for this headless engine package.
+## 14. Non-goals for v0.1
 
-## 13. Non-goals for v0.1
-
-- scraping live offers;
-- defining unresolved purchase assumptions;
+- live scraping;
+- unresolved purchase assumptions;
 - UI/Excel generation;
-- automatic evidence promotion;
-- probabilistic residual-value forecasting;
-- hiding uncertainty behind one composite confidence score.
+- automatic source verification;
+- probabilistic residual forecasting;
+- reconstructing missing v3 anchors from memory;
+- claiming bit-for-bit v3.2.1 reproduction before the original fixture is recovered.
 
-## 14. Release condition
+## 15. Release condition
 
-Engine v0.1 may merge when CI passes and review confirms that no code path silently weakens a binding decision documented in `docs/DECISIONS.md`.
+Engine v0.1 may merge only when:
+
+1. CI is green;
+2. the adversarial review is rerun against the patched implementation;
+3. no unresolved P0 finding remains;
+4. any remaining P1/P2 limitation is explicitly documented and does not silently weaken a binding decision.
