@@ -54,6 +54,13 @@ def _derived_value(value: float | None, *, inputs: list[ObservedValue], unit: st
     )
 
 
+def _require_observation(name: str, observed: ObservedValue | None, reasons: list[str]) -> None:
+    if observed is None or observed.value is None:
+        reasons.append(f"{name}_missing")
+    elif observed.evidence.grade == EvidenceGrade.UNKNOWN:
+        reasons.append(f"{name}_evidence_unknown")
+
+
 def lease_economics(offer: AcquisitionOffer, profile: UserProfile) -> dict[str, Any]:
     if offer.mode != AcquisitionMode.LEASE_NEW:
         raise PurchaseMethodBlockedError(
@@ -68,8 +75,7 @@ def lease_economics(offer: AcquisitionOffer, profile: UserProfile) -> dict[str, 
         "mandatory_fees": offer.mandatory_fees,
     }
     for name, observed in required.items():
-        if observed is None or observed.value is None:
-            reasons.append(f"{name}_missing")
+        _require_observation(name, observed, reasons)
 
     term_months = _value(offer.term_months)
     upfront = _value(offer.upfront_payment)
@@ -93,6 +99,8 @@ def lease_economics(offer: AcquisitionOffer, profile: UserProfile) -> dict[str, 
     elif offer.annual_km is None or offer.annual_km.value is None:
         reasons.append("annual_km_missing")
     elif term_months is not None:
+        if offer.annual_km.evidence.grade == EvidenceGrade.UNKNOWN:
+            reasons.append("annual_km_evidence_unknown")
         annual_km = _value(offer.annual_km)
         years = term_months / 12.0
         expected_total_km = profile.expected_annual_km * years
@@ -106,6 +114,8 @@ def lease_economics(offer: AcquisitionOffer, profile: UserProfile) -> dict[str, 
                 mileage_adjustment = None
                 reasons.append("overage_cost_per_km_missing")
             else:
+                if offer.overage_cost_per_km.evidence.grade == EvidenceGrade.UNKNOWN:
+                    reasons.append("overage_cost_per_km_evidence_unknown")
                 overage_cost = delta * _value(offer.overage_cost_per_km)
                 unused_km_value_loss = 0.0
                 mileage_adjustment = overage_cost
@@ -116,6 +126,8 @@ def lease_economics(offer: AcquisitionOffer, profile: UserProfile) -> dict[str, 
                 mileage_adjustment = None
                 reasons.append("unused_km_value_per_km_missing")
             else:
+                if profile.unused_km_value_per_km.evidence.grade == EvidenceGrade.UNKNOWN:
+                    reasons.append("unused_km_value_per_km_evidence_unknown")
                 unused_km_value_loss = (-delta) * _value(profile.unused_km_value_per_km)
                 overage_cost = 0.0
                 mileage_adjustment = unused_km_value_loss
@@ -152,6 +164,6 @@ def lease_economics(offer: AcquisitionOffer, profile: UserProfile) -> dict[str, 
         "contracted_total_km": contracted_total_km,
         "total_adjusted_cost": total_adjusted_cost,
         "complete": not reasons,
-        "reasons": tuple(reasons),
+        "reasons": tuple(dict.fromkeys(reasons)),
         "derived_attributes": derived,
     }
