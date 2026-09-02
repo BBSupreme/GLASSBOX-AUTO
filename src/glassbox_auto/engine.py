@@ -64,6 +64,8 @@ def evaluate_candidate(vehicle: Vehicle, offer: AcquisitionOffer, profile: UserP
         reasons.append("decision_critical_unknown")
     if any(r.reason == "unit_mismatch" for r in criterion_results if r.active):
         reasons.append("unit_mismatch")
+    if any(r.reason == "type_mismatch" for r in criterion_results if r.active):
+        reasons.append("type_mismatch")
     if score is None:
         reasons.append("no_scorable_criteria")
 
