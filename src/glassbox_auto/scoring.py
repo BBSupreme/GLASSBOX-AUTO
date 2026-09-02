@@ -80,11 +80,7 @@ def score_candidate(
     dimension_weights: dict[str, float] | None = None,
 ):
     dimension_weights = dimension_weights or {}
-    total_active_weight = sum(
-        _effective_weight(c, dimension_weights)
-        for c in criteria
-        if c.active
-    )
+    total_active_weight = sum(_effective_weight(c, dimension_weights) for c in criteria if c.active)
     data_weight = 0.0
     sufficient_weight = 0.0
     scored_weight = 0.0
@@ -111,8 +107,14 @@ def score_candidate(
 
         observed = attributes.get(criterion.attribute)
         data_present = observed is not None and observed.value is not None
+        unit_matches = bool(
+            not data_present
+            or criterion.unit is None
+            or observed.unit == criterion.unit
+        )
         evidence_sufficient = bool(
             data_present
+            and unit_matches
             and GRADE_RANK[observed.evidence.grade] >= GRADE_RANK[criterion.minimum_evidence]
         )
         if data_present:
@@ -125,11 +127,14 @@ def score_candidate(
         if not data_present:
             results.append(CriterionResult(criterion.criterion_id, None, weight, gate_state, False, False, True, False, reason="missing"))
             continue
+        if not unit_matches:
+            results.append(CriterionResult(criterion.criterion_id, None, weight, gate_state, True, False, True, False, reason="unit_mismatch"))
+            continue
         if not evidence_sufficient:
             results.append(CriterionResult(criterion.criterion_id, None, weight, gate_state, True, False, True, False, reason="insufficient_evidence"))
             continue
         if criterion.anchors is None:
-            results.append(CriterionResult(criterion.criterion_id, None, weight, gate_state, True, True, True, False, reason="unscorable_no_anchors"))
+            results.append(CriterionResult(criterion.criterion_id, None, weight, gate_state, True, True, True, False, reason="gate_only"))
             continue
 
         utility = piecewise_utility(float(observed.value), criterion.anchors)
@@ -142,9 +147,6 @@ def score_candidate(
     evidence_coverage = 0.0 if total_active_weight == 0 else sufficient_weight / total_active_weight
 
     if scored_weight:
-        results = [
-            replace(r, normalized_weight=(r.weight / scored_weight if r.scorable else 0.0))
-            for r in results
-        ]
+        results = [replace(r, normalized_weight=(r.weight / scored_weight if r.scorable else 0.0)) for r in results]
 
     return score, data_coverage, evidence_coverage, tuple(results)
