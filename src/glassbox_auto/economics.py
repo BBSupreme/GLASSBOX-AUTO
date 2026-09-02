@@ -147,12 +147,18 @@ def lease_economics(offer: AcquisitionOffer, profile: UserProfile) -> dict[str, 
                 mileage_adjustment = None
                 reasons.append("unused_km_value_per_km_missing")
             else:
-                if profile.unused_km_value_per_km.evidence.grade == EvidenceGrade.UNKNOWN:
-                    reasons.append("unused_km_value_per_km_evidence_unknown")
-                unused_km_value_loss = (-delta) * _value(profile.unused_km_value_per_km)
-                overage_cost = 0.0
-                mileage_adjustment = unused_km_value_loss
-                mileage_inputs.append(profile.unused_km_value_per_km)
+                expected_unit = f"{offer.currency}/km"
+                if profile.unused_km_value_per_km.unit != expected_unit:
+                    unused_km_value_loss = None
+                    mileage_adjustment = None
+                    reasons.append("unused_km_value_per_km_unit_mismatch")
+                else:
+                    if profile.unused_km_value_per_km.evidence.grade == EvidenceGrade.UNKNOWN:
+                        reasons.append("unused_km_value_per_km_evidence_unknown")
+                    unused_km_value_loss = (-delta) * _value(profile.unused_km_value_per_km)
+                    overage_cost = 0.0
+                    mileage_adjustment = unused_km_value_loss
+                    mileage_inputs.append(profile.unused_km_value_per_km)
         else:
             mileage_adjustment = 0.0
 
