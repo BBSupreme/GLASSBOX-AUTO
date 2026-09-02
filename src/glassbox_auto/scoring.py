@@ -63,12 +63,7 @@ def evaluate_gate(observed: ObservedValue | None, gate: GateDefinition) -> GateS
 
 def _effective_weight(criterion: Criterion, dimension_weights: dict[str, float]) -> float:
     dimension_weight = dimension_weights.get(criterion.dimension, 1.0) if criterion.dimension else 1.0
-    weight = (
-        criterion.base_weight
-        * criterion.subweight
-        * dimension_weight
-        * PREFERENCE_MULTIPLIERS[criterion.preference]
-    )
+    weight = criterion.base_weight * criterion.subweight * dimension_weight * PREFERENCE_MULTIPLIERS[criterion.preference]
     if criterion.weight_cap is not None:
         weight = min(weight, criterion.weight_cap)
     return weight
@@ -90,31 +85,22 @@ def score_candidate(
     for criterion in criteria:
         weight = _effective_weight(criterion, dimension_weights)
         if not criterion.active:
-            results.append(
-                CriterionResult(
-                    criterion_id=criterion.criterion_id,
-                    utility=None,
-                    weight=weight,
-                    gate_state=None,
-                    data_present=False,
-                    evidence_sufficient=False,
-                    active=False,
-                    scorable=False,
-                    reason="inactive",
-                )
-            )
+            results.append(CriterionResult(criterion.criterion_id, None, weight, None, False, False, False, False, reason="inactive"))
             continue
 
         observed = attributes.get(criterion.attribute)
         data_present = observed is not None and observed.value is not None
-        unit_matches = bool(
+        unit_matches = bool(not data_present or criterion.unit is None or observed.unit == criterion.unit)
+        numeric_required = criterion.anchors is not None
+        type_matches = bool(
             not data_present
-            or criterion.unit is None
-            or observed.unit == criterion.unit
+            or not numeric_required
+            or (isinstance(observed.value, (int, float)) and not isinstance(observed.value, bool))
         )
         evidence_sufficient = bool(
             data_present
             and unit_matches
+            and type_matches
             and GRADE_RANK[observed.evidence.grade] >= GRADE_RANK[criterion.minimum_evidence]
         )
         if data_present:
@@ -122,13 +108,21 @@ def score_candidate(
         if evidence_sufficient:
             sufficient_weight += weight
 
-        gate_state = evaluate_gate(observed, criterion.gate) if criterion.gate is not None else None
+        if criterion.gate is None:
+            gate_state = None
+        elif not unit_matches or not type_matches:
+            gate_state = GateState.UNKNOWN
+        else:
+            gate_state = evaluate_gate(observed, criterion.gate)
 
         if not data_present:
             results.append(CriterionResult(criterion.criterion_id, None, weight, gate_state, False, False, True, False, reason="missing"))
             continue
         if not unit_matches:
             results.append(CriterionResult(criterion.criterion_id, None, weight, gate_state, True, False, True, False, reason="unit_mismatch"))
+            continue
+        if not type_matches:
+            results.append(CriterionResult(criterion.criterion_id, None, weight, gate_state, True, False, True, False, reason="type_mismatch"))
             continue
         if not evidence_sufficient:
             results.append(CriterionResult(criterion.criterion_id, None, weight, gate_state, True, False, True, False, reason="insufficient_evidence"))
@@ -137,7 +131,7 @@ def score_candidate(
             results.append(CriterionResult(criterion.criterion_id, None, weight, gate_state, True, True, True, False, reason="gate_only"))
             continue
 
-        utility = piecewise_utility(float(observed.value), criterion.anchors)
+        utility = piecewise_utility(observed.value, criterion.anchors)
         scored_weight += weight
         weighted_utility += utility * weight
         results.append(CriterionResult(criterion.criterion_id, utility, weight, gate_state, True, True, True, True))
