@@ -1,40 +1,40 @@
 from __future__ import annotations
 
+from dataclasses import replace
+
 from .models import (
     Criterion,
     CriterionResult,
-    EvidenceGrade,
     GRADE_RANK,
     GateDefinition,
     GateState,
     ObservedValue,
     PREFERENCE_MULTIPLIERS,
-    PreferenceLabel,
     UtilityAnchors,
     UtilityDirection,
 )
 
 
 def piecewise_utility(value: float, anchors: UtilityAnchors) -> float:
-    f, n, s = anchors.floor, anchors.need, anchors.stretch
+    f, n, s, u_need = anchors.floor, anchors.need, anchors.stretch, anchors.need_utility
     if anchors.direction == UtilityDirection.HIGHER_IS_BETTER:
         if not (f < n < s):
             raise ValueError("HIGHER_IS_BETTER requires floor < need < stretch")
         if value <= f:
             return 0.0
         if value < n:
-            return 0.8 * (value - f) / (n - f)
+            return u_need * (value - f) / (n - f)
         if value < s:
-            return 0.8 + 0.2 * (value - n) / (s - n)
+            return u_need + (1.0 - u_need) * (value - n) / (s - n)
         return 1.0
     if not (f > n > s):
         raise ValueError("LOWER_IS_BETTER requires floor > need > stretch")
     if value >= f:
         return 0.0
     if value > n:
-        return 0.8 * (f - value) / (f - n)
+        return u_need * (f - value) / (f - n)
     if value > s:
-        return 0.8 + 0.2 * (n - value) / (n - s)
+        return u_need + (1.0 - u_need) * (n - value) / (n - s)
     return 1.0
 
 
@@ -61,45 +61,90 @@ def evaluate_gate(observed: ObservedValue | None, gate: GateDefinition) -> GateS
     return GateState.PASS if _compare(observed.value, gate.operator, gate.threshold) else GateState.FAIL
 
 
-def score_candidate(criteria: tuple[Criterion, ...], attributes: dict[str, ObservedValue]):
-    active = [c for c in criteria if c.active]
-    total_weight = sum(PREFERENCE_MULTIPLIERS[c.preference] for c in active)
-    covered_weight = 0.0
+def _effective_weight(criterion: Criterion, dimension_weights: dict[str, float]) -> float:
+    dimension_weight = dimension_weights.get(criterion.dimension, 1.0) if criterion.dimension else 1.0
+    weight = (
+        criterion.base_weight
+        * criterion.subweight
+        * dimension_weight
+        * PREFERENCE_MULTIPLIERS[criterion.preference]
+    )
+    if criterion.weight_cap is not None:
+        weight = min(weight, criterion.weight_cap)
+    return weight
+
+
+def score_candidate(
+    criteria: tuple[Criterion, ...],
+    attributes: dict[str, ObservedValue],
+    dimension_weights: dict[str, float] | None = None,
+):
+    dimension_weights = dimension_weights or {}
+    total_active_weight = sum(
+        _effective_weight(c, dimension_weights)
+        for c in criteria
+        if c.active
+    )
+    data_weight = 0.0
+    sufficient_weight = 0.0
     scored_weight = 0.0
     weighted_utility = 0.0
     results: list[CriterionResult] = []
 
-    for criterion in active:
-        weight = PREFERENCE_MULTIPLIERS[criterion.preference]
-        observed = attributes.get(criterion.attribute)
-        covered = bool(
-            observed is not None
-            and observed.value is not None
-            and observed.evidence.grade != EvidenceGrade.UNKNOWN
-        )
-        if covered:
-            covered_weight += weight
-
-        gate_state = None
-        if criterion.preference == PreferenceLabel.MUST_HAVE:
-            if criterion.gate is None:
-                raise ValueError(f"Must-have criterion {criterion.criterion_id} requires a gate")
-            gate_state = evaluate_gate(observed, criterion.gate)
-        elif criterion.gate is not None:
-            gate_state = evaluate_gate(observed, criterion.gate)
-
-        if observed is None or observed.value is None or criterion.anchors is None:
-            results.append(CriterionResult(criterion.criterion_id, None, weight, gate_state, covered, "missing_or_unscorable"))
+    for criterion in criteria:
+        weight = _effective_weight(criterion, dimension_weights)
+        if not criterion.active:
+            results.append(
+                CriterionResult(
+                    criterion_id=criterion.criterion_id,
+                    utility=None,
+                    weight=weight,
+                    gate_state=None,
+                    data_present=False,
+                    evidence_sufficient=False,
+                    active=False,
+                    scorable=False,
+                    reason="inactive",
+                )
+            )
             continue
-        if GRADE_RANK[observed.evidence.grade] < GRADE_RANK[criterion.minimum_evidence]:
-            results.append(CriterionResult(criterion.criterion_id, None, weight, gate_state, covered, "insufficient_evidence"))
+
+        observed = attributes.get(criterion.attribute)
+        data_present = observed is not None and observed.value is not None
+        evidence_sufficient = bool(
+            data_present
+            and GRADE_RANK[observed.evidence.grade] >= GRADE_RANK[criterion.minimum_evidence]
+        )
+        if data_present:
+            data_weight += weight
+        if evidence_sufficient:
+            sufficient_weight += weight
+
+        gate_state = evaluate_gate(observed, criterion.gate) if criterion.gate is not None else None
+
+        if not data_present:
+            results.append(CriterionResult(criterion.criterion_id, None, weight, gate_state, False, False, True, False, reason="missing"))
+            continue
+        if not evidence_sufficient:
+            results.append(CriterionResult(criterion.criterion_id, None, weight, gate_state, True, False, True, False, reason="insufficient_evidence"))
+            continue
+        if criterion.anchors is None:
+            results.append(CriterionResult(criterion.criterion_id, None, weight, gate_state, True, True, True, False, reason="unscorable_no_anchors"))
             continue
 
         utility = piecewise_utility(float(observed.value), criterion.anchors)
         scored_weight += weight
         weighted_utility += utility * weight
-        results.append(CriterionResult(criterion.criterion_id, utility, weight, gate_state, covered))
+        results.append(CriterionResult(criterion.criterion_id, utility, weight, gate_state, True, True, True, True))
 
     score = None if scored_weight == 0 else 10.0 * weighted_utility / scored_weight
-    coverage = 0.0 if total_weight == 0 else covered_weight / total_weight
-    return score, coverage, tuple(results)
+    data_coverage = 0.0 if total_active_weight == 0 else data_weight / total_active_weight
+    evidence_coverage = 0.0 if total_active_weight == 0 else sufficient_weight / total_active_weight
+
+    if scored_weight:
+        results = [
+            replace(r, normalized_weight=(r.weight / scored_weight if r.scorable else 0.0))
+            for r in results
+        ]
+
+    return score, data_coverage, evidence_coverage, tuple(results)
