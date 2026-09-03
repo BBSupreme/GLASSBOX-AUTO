@@ -89,6 +89,11 @@ def canonical_family_gate(
     child_seat: FamilyTestState,
     stroller: FamilyTestState,
 ) -> HistoricalCheck:
+    """Revision-A-aligned family gate with strict typed inputs."""
+    if not isinstance(dealbreaker, bool):
+        return HistoricalCheck.UNKNOWN
+    if not isinstance(child_seat, FamilyTestState) or not isinstance(stroller, FamilyTestState):
+        return HistoricalCheck.UNKNOWN
     if dealbreaker:
         return HistoricalCheck.FAIL
     if FamilyTestState.FAIL in {child_seat, stroller}:
@@ -134,12 +139,14 @@ def canonical_terms_gate(
     """Revision A operationalization of acceptable lease terms.
 
     Required evidence is a concrete binding period, the user's maximum
-    acceptable binding period, known minimum price in binding, and known
-    termination/return terms. Missing or non-finite required evidence is
-    UNKNOWN. A known binding-period breach or non-positive minimum price is
-    FAIL.
+    acceptable binding period, known minimum price in binding, and explicitly
+    boolean termination/return evidence flags. Missing, wrongly typed, or
+    non-finite required evidence is UNKNOWN. A known binding-period breach or
+    non-positive minimum price is FAIL.
     """
     if binding_period_months is None or max_binding_period_months is None or minimum_price_in_binding is None:
+        return HistoricalCheck.UNKNOWN
+    if not isinstance(termination_terms_known, bool) or not isinstance(return_terms_known, bool):
         return HistoricalCheck.UNKNOWN
     if not termination_terms_known or not return_terms_known:
         return HistoricalCheck.UNKNOWN
