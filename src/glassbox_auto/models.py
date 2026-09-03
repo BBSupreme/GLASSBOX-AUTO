@@ -199,6 +199,7 @@ class UserProfile:
     expected_annual_km: int | None = None
     unused_km_value_per_km: ObservedValue | None = None
     dimension_weights: dict[str, float] = field(default_factory=dict)
+    require_unused_km_value: bool = True
 
     def __post_init__(self) -> None:
         if self.expected_annual_km is not None and self.expected_annual_km < 0:
