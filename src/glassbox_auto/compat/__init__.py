@@ -29,6 +29,11 @@ from .v3_economics import (
     relative_economics_score,
     stress_household_monthly,
 )
+from .v3_workbook import (
+    RECONSTRUCTED_V3_2_1_SHA256,
+    WorkbookValidation,
+    validate_reconstructed_v3_2_1,
+)
 
 __all__ = [
     "CoverageStrategy",
@@ -58,4 +63,7 @@ __all__ = [
     "insurance_monthly",
     "relative_economics_score",
     "stress_household_monthly",
+    "RECONSTRUCTED_V3_2_1_SHA256",
+    "WorkbookValidation",
+    "validate_reconstructed_v3_2_1",
 ]
