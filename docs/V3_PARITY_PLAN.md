@@ -49,9 +49,10 @@ Confirmed examples:
 | PC-02 | Readiness | decision-critical UNKNOWN + close-call/freshness semantics | observed READY / NEARLY READY / NOT READY from critical-open count + expiry | **TRACK SEPARATELY** |
 | PC-03 | Confidence | non-critical gaps reduce Confidence | HIGH/MEDIUM/LOW derived from 4 critical checks | **TRACK SEPARATELY** |
 | PC-04 | Economics scope | method-level economics dimension | observed household monthly cost includes lease, energy, insurance, parking, tax/wear reserve, over-km | **ADAPTER IMPLEMENTED / FIXTURES REQUIRED** |
-| PC-05 | Offer freshness | weekly shortlist checks; STALE caps Confidence/Readiness, EXPIRED #1 -> NOT READY | workbook has ACTIVE/STALE/EXPIRED behavior | **ADAPTER REQUIRED** |
-| PC-06 | Composite gates | gates must be operationally defined | NCAP, family test and lease terms are composite checks | **DERIVE ATTRIBUTES + LINEAGE** |
+| PC-05 | Offer freshness | weekly shortlist checks; STALE caps Confidence/Readiness, EXPIRED #1 -> NOT READY | workbook has ACTIVE/STALE/EXPIRED behavior | **ADAPTER IN PROGRESS** |
+| PC-06 | Composite gates | gates must be operationally defined | NCAP, family test and lease terms are composite checks | **ADAPTER IN PROGRESS** |
 | PC-07 | ACTIVE offer whose `Gyldig til` has passed | expired offer must not remain decision-eligible; implementation handover reports EXPIRED -> INELIGIBLE | `Offers_Data!Z` becomes `EXPIRED`, but `Scoring_Engine!X` checks only `STALE` when status is ACTIVE and therefore returns `PASS` | **RECOVERED WORKBOOK REGRESSION — reproduce as observation, correct in canonical adapter** |
+| PC-08 | Family-test Dealbreaker | `Dealbreaker? = YES` must fail the family gate | sheet label is row 25, but `Scoring_Engine!Y` reads row 26 (`Dato`) for the YES check | **RECOVERED WORKBOOK REGRESSION — reproduce as observation, correct in canonical adapter** |
 
 ### PC-07 formula evidence
 
@@ -61,6 +62,10 @@ Recovered formulas:
 - `Scoring_Engine!X = IF(status=ACTIVE, IF(freshness=STALE, CHECK, PASS), IF(status=EXPIRING, CHECK, FAIL))`
 
 Therefore ACTIVE + elapsed `Gyldig til` -> freshness `EXPIRED` -> gate `PASS`. The parity layer must preserve this as an observed DIFFERENCE, not canonize it.
+
+### PC-08 formula evidence
+
+`PRØVEKØRSEL` labels `Dealbreaker?` on row 25 and `Dato` on row 26. The recovered `Scoring_Engine!Y` formula nevertheless checks `PRØVEKØRSEL!B26:E26 = "YES"` before the Autostol/Barnevogn checks. Thus a literal Dealbreaker=YES in row 25 is ignored by that clause.
 
 ## 4. Parity levels
 
@@ -109,7 +114,7 @@ The adapter may:
 The adapter may not:
 - change generic Engine 0.1.0 defaults merely to imitate a workbook;
 - resolve PC-01 by choosing whichever rule makes scores match;
-- turn PC-07 into canonical behavior;
+- turn PC-07 or PC-08 into canonical behavior;
 - label inferred data VERIFIED;
 - enable purchase modes.
 
@@ -122,8 +127,9 @@ The adapter may not:
 5. a source-backed household Economics adapter is added with formula fixtures;
 6. composite gate derivations preserve lineage;
 7. offer freshness reproduces observed behavior and explicitly detects PC-07;
-8. parity report lists MATCH / DIFFERENCE / UNRESOLVED rather than hiding discrepancies;
-9. CI and adversarial review pass before any merge.
+8. family gate reproduces observed behavior and explicitly detects PC-08;
+9. parity report lists MATCH / DIFFERENCE / UNRESOLVED rather than hiding discrepancies;
+10. CI and adversarial review pass before any merge.
 
 ## 8. Explicit non-goals
 
