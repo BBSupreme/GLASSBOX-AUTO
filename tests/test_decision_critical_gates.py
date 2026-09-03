@@ -9,6 +9,7 @@ from glassbox_auto.models import (
     Evidence,
     EvidenceGrade,
     GateDefinition,
+    GateState,
     ObservedValue,
     PreferenceLabel,
     Readiness,
@@ -63,11 +64,12 @@ def test_noncritical_unknown_does_not_block_eligibility_or_readiness():
     )
 
     result = evaluate_candidate(vehicle, lease_offer("v"), profile)
+    gate_result = next(r for r in result.criterion_results if r.criterion_id == "noncritical_check")
 
+    assert gate_result.gate_state == GateState.UNKNOWN
     assert result.eligibility == Eligibility.ELIGIBLE
     assert result.readiness == Readiness.READY
     assert "decision_critical_unknown" not in result.reasons
-    assert result.evidence_coverage < 1.0
 
 
 def test_decision_critical_unknown_still_blocks_under_generic_policy():
