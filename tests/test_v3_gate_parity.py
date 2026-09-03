@@ -29,7 +29,6 @@ def test_ncap_missing_component_is_unknown():
 
 
 def test_pc08_observed_formula_ignores_actual_dealbreaker_row():
-    # Observed recovered formula reads the Date row instead of Dealbreaker.
     observed = observed_recovered_v3_family_gate(
         date_field="2026-09-03",
         child_seat=FamilyTestState.PASS,
@@ -60,7 +59,8 @@ def test_family_gate_concern_and_missing_states():
 def test_pc09_observed_terms_gate_can_pass_without_exit_terms():
     observed = observed_recovered_v3_terms_gate(minimum_price_in_binding=100000)
     canonical = canonical_terms_gate(
-        binding_period_known=True,
+        binding_period_months=12,
+        max_binding_period_months=12,
         minimum_price_in_binding=100000,
         termination_terms_known=False,
         return_terms_known=False,
@@ -71,14 +71,43 @@ def test_pc09_observed_terms_gate_can_pass_without_exit_terms():
 
 def test_canonical_terms_gate_requires_all_operational_evidence():
     assert canonical_terms_gate(
-        binding_period_known=True,
+        binding_period_months=12,
+        max_binding_period_months=12,
         minimum_price_in_binding=100000,
         termination_terms_known=True,
         return_terms_known=True,
     ) == HistoricalCheck.PASS
     assert canonical_terms_gate(
-        binding_period_known=True,
+        binding_period_months=None,
+        max_binding_period_months=12,
+        minimum_price_in_binding=100000,
+        termination_terms_known=True,
+        return_terms_known=True,
+    ) == HistoricalCheck.UNKNOWN
+    assert canonical_terms_gate(
+        binding_period_months=12,
+        max_binding_period_months=12,
         minimum_price_in_binding=None,
         termination_terms_known=True,
         return_terms_known=True,
     ) == HistoricalCheck.UNKNOWN
+
+
+def test_canonical_terms_gate_fails_known_binding_breach():
+    assert canonical_terms_gate(
+        binding_period_months=18,
+        max_binding_period_months=12,
+        minimum_price_in_binding=100000,
+        termination_terms_known=True,
+        return_terms_known=True,
+    ) == HistoricalCheck.FAIL
+
+
+def test_canonical_terms_gate_fails_non_positive_minimum_price():
+    assert canonical_terms_gate(
+        binding_period_months=12,
+        max_binding_period_months=12,
+        minimum_price_in_binding=0,
+        termination_terms_known=True,
+        return_terms_known=True,
+    ) == HistoricalCheck.FAIL
