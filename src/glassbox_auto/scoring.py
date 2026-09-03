@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
+import math
 
 from .models import (
     Criterion,
@@ -40,7 +41,11 @@ def piecewise_utility(value: float, anchors: UtilityAnchors) -> float:
 
 
 def _is_number(value) -> bool:
-    return isinstance(value, (int, float)) and not isinstance(value, bool)
+    return (
+        isinstance(value, (int, float))
+        and not isinstance(value, bool)
+        and math.isfinite(float(value))
+    )
 
 
 def _gate_type_matches(value, threshold) -> bool:
