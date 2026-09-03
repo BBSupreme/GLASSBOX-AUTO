@@ -5,11 +5,12 @@
 GLASSBOX-AUTO uses **Semantic Versioning** for the headless engine package.
 
 - `0.1.0` = first audited engine substrate release.
+- `0.2.0` = historical compatibility/parity infrastructure release: explicit source tracks, recovered v3 adapters, reconstructed 3.2.1-R validation and formula-level regression controls.
 - `0.x` means the public schema/API may still change as historical parity and purchase support are added.
 - A breaking canonical schema/API change before 1.0 increments the minor version.
 - Backward-compatible functionality increments minor; backward-compatible fixes increment patch where practical pre-1.0.
 
-Historical workbook labels such as `v2.1`, `v3`, `v3.2`, and `v3.2.1` are **source/fixture versions**, not engine SemVer. Never imply equivalence from matching numbers.
+Historical workbook labels such as `v2.1`, `v3`, `v3.2`, historical `v3.2.1`, and generated `3.2.1-R` are **source/fixture versions**, not engine SemVer. Never imply equivalence from matching numbers.
 
 ## Branch policy
 
@@ -39,17 +40,27 @@ Data-only work must preserve provenance and may not silently change scoring, sta
 
 ## Release labels
 
-Engine release: `0.1.0`.
+Current release candidate: Engine `0.2.0`.
 
-Historical compatibility claims must be explicit, for example:
+Historical compatibility claims must be explicit:
 
 - `recovered-v3-compatible` — source-backed semantics from recovered v3/v3.2 artifacts;
-- `v3.2.1-parity-verified` — reserved until an exact v3.2.1 fixture/harness proves parity.
+- `v3.2.1-R-reconstructed` — generated compliance reconstruction under Revision A, explicitly not recovered history;
+- `v3.2.1-parity-verified` — reserved until an exact historical v3.2.1 fixture/harness proves parity.
 
-The second label is currently prohibited.
+The third label remains prohibited.
 
-## Next branch
+## Reconstruction rule
 
-After Engine `0.1.0` merges, create `validation/v3-parity` from `main`.
+When a historical artifact cannot be recovered, a replacement may be generated only if:
 
-Its target is **recovered v3/v3.2 compatibility first**, while keeping the v3.2.1 gap explicit. It must not modify generic core semantics merely to imitate an ambiguous workbook behavior; historical differences belong in a documented compatibility adapter/profile unless a canonical rule is genuinely generic.
+- its source artifacts and hashes are recorded;
+- assumptions are not silently filled;
+- it receives a distinct reconstructed label;
+- observed historical behavior and corrected canonical behavior remain distinguishable;
+- its fingerprint and validation contract are published;
+- later recovery of the historical artifact triggers a fresh parity comparison rather than replacement of provenance.
+
+## Next branch after Engine 0.2.0
+
+Do not fold purchase/new-buy/used-buy economics into the historical-parity branch. The next implementation branch should start only after the original Acquisition/Purchase P1-P3 findings and purchase Economics anchors are recovered or re-adjudicated explicitly.
