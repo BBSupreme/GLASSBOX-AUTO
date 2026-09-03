@@ -28,6 +28,12 @@ def test_ncap_missing_component_is_unknown():
     assert result.evidence.grade == EvidenceGrade.UNKNOWN
 
 
+def test_ncap_non_finite_component_is_unknown():
+    result = derive_ncap_gate(verified(float("nan"), "ncap-year"), verified(5, "ncap-stars"))
+    assert result.value is None
+    assert result.evidence.grade == EvidenceGrade.UNKNOWN
+
+
 def test_pc08_observed_formula_ignores_actual_dealbreaker_row():
     observed = observed_recovered_v3_family_gate(
         date_field="2026-09-03",
@@ -111,3 +117,28 @@ def test_canonical_terms_gate_fails_non_positive_minimum_price():
         termination_terms_known=True,
         return_terms_known=True,
     ) == HistoricalCheck.FAIL
+
+
+def test_canonical_terms_gate_rejects_non_finite_inputs():
+    common = dict(
+        termination_terms_known=True,
+        return_terms_known=True,
+    )
+    assert canonical_terms_gate(
+        binding_period_months=float("nan"),
+        max_binding_period_months=12,
+        minimum_price_in_binding=100000,
+        **common,
+    ) == HistoricalCheck.UNKNOWN
+    assert canonical_terms_gate(
+        binding_period_months=12,
+        max_binding_period_months=float("inf"),
+        minimum_price_in_binding=100000,
+        **common,
+    ) == HistoricalCheck.UNKNOWN
+    assert canonical_terms_gate(
+        binding_period_months=12,
+        max_binding_period_months=12,
+        minimum_price_in_binding=float("nan"),
+        **common,
+    ) == HistoricalCheck.UNKNOWN
