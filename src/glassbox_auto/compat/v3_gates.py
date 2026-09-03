@@ -22,26 +22,42 @@ class FamilyTestState(str, Enum):
     UNKNOWN = "UNKNOWN"
 
 
-def _derived_evidence(method: str, inputs: tuple[ObservedValue, ...]) -> Evidence:
-    usable = tuple(value for value in inputs if value is not None)
-    if not usable or any(value.value is None for value in usable):
-        grade = EvidenceGrade.UNKNOWN
-    else:
-        grade = min((value.evidence.grade for value in usable), key=lambda item: GRADE_RANK[item])
-    lineage = tuple(
+def _lineage(inputs: tuple[ObservedValue | None, ...]) -> tuple[str, ...]:
+    return tuple(
         dict.fromkeys(
             source
-            for value in usable
+            for value in inputs
+            if value is not None
             for source in ((value.evidence.source,) + value.evidence.lineage)
             if source
         )
     )
+
+
+def _derived_evidence(method: str, inputs: tuple[ObservedValue, ...]) -> Evidence:
+    if not inputs or any(value.value is None for value in inputs):
+        grade = EvidenceGrade.UNKNOWN
+    else:
+        grade = min((value.evidence.grade for value in inputs), key=lambda item: GRADE_RANK[item])
     return Evidence(
         grade=grade,
         source=f"derived:{method}",
         kind=EvidenceKind.DERIVED,
         method=method,
-        lineage=lineage,
+        lineage=_lineage(inputs),
+    )
+
+
+def _unknown_derived(method: str, inputs: tuple[ObservedValue | None, ...]) -> ObservedValue:
+    return ObservedValue(
+        None,
+        Evidence(
+            EvidenceGrade.UNKNOWN,
+            source=f"derived:{method}",
+            kind=EvidenceKind.DERIVED,
+            method=method,
+            lineage=_lineage(inputs),
+        ),
     )
 
 
@@ -50,14 +66,16 @@ def derive_ncap_gate(
     stars: ObservedValue | None,
 ) -> ObservedValue:
     """Canonical recovered-v3 NCAP composite: year>=2020 AND stars>=5."""
-    inputs = tuple(value for value in (protocol_year, stars) if value is not None)
-    evidence = _derived_evidence("recovered_v3_ncap_gate", inputs)
+    raw_inputs = (protocol_year, stars)
     if protocol_year is None or stars is None or protocol_year.value is None or stars.value is None:
-        return ObservedValue(None, evidence)
+        return _unknown_derived("recovered_v3_ncap_gate", raw_inputs)
     if not isinstance(protocol_year.value, (int, float)) or isinstance(protocol_year.value, bool):
-        return ObservedValue(None, Evidence(EvidenceGrade.UNKNOWN, source="derived:recovered_v3_ncap_gate", kind=EvidenceKind.DERIVED, method="recovered_v3_ncap_gate", lineage=evidence.lineage))
+        return _unknown_derived("recovered_v3_ncap_gate", raw_inputs)
     if not isinstance(stars.value, (int, float)) or isinstance(stars.value, bool):
-        return ObservedValue(None, Evidence(EvidenceGrade.UNKNOWN, source="derived:recovered_v3_ncap_gate", kind=EvidenceKind.DERIVED, method="recovered_v3_ncap_gate", lineage=evidence.lineage))
+        return _unknown_derived("recovered_v3_ncap_gate", raw_inputs)
+
+    inputs = (protocol_year, stars)
+    evidence = _derived_evidence("recovered_v3_ncap_gate", inputs)
     value = protocol_year.value >= V3_NCAP_MIN_PROTOCOL_YEAR and stars.value >= V3_NCAP_MIN_STARS
     return ObservedValue(value, evidence)
 
