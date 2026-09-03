@@ -62,6 +62,19 @@ def test_family_gate_concern_and_missing_states():
     ) == HistoricalCheck.TO_TEST
 
 
+def test_canonical_family_gate_rejects_truthy_string_inputs():
+    assert canonical_family_gate(
+        dealbreaker="NO",  # type: ignore[arg-type]
+        child_seat=FamilyTestState.PASS,
+        stroller=FamilyTestState.PASS,
+    ) == HistoricalCheck.UNKNOWN
+    assert canonical_family_gate(
+        dealbreaker=False,
+        child_seat="PASS",  # type: ignore[arg-type]
+        stroller=FamilyTestState.PASS,
+    ) == HistoricalCheck.UNKNOWN
+
+
 def test_pc09_observed_terms_gate_can_pass_without_exit_terms():
     observed = observed_recovered_v3_terms_gate(minimum_price_in_binding=100000)
     canonical = canonical_terms_gate(
@@ -141,4 +154,21 @@ def test_canonical_terms_gate_rejects_non_finite_inputs():
         max_binding_period_months=12,
         minimum_price_in_binding=float("nan"),
         **common,
+    ) == HistoricalCheck.UNKNOWN
+
+
+def test_canonical_terms_gate_rejects_truthy_string_flags():
+    assert canonical_terms_gate(
+        binding_period_months=12,
+        max_binding_period_months=12,
+        minimum_price_in_binding=100000,
+        termination_terms_known="NEJ",  # type: ignore[arg-type]
+        return_terms_known=True,
+    ) == HistoricalCheck.UNKNOWN
+    assert canonical_terms_gate(
+        binding_period_months=12,
+        max_binding_period_months=12,
+        minimum_price_in_binding=100000,
+        termination_terms_known=True,
+        return_terms_known="JA",  # type: ignore[arg-type]
     ) == HistoricalCheck.UNKNOWN
