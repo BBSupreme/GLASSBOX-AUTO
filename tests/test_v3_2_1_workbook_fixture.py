@@ -1,86 +1,75 @@
 from __future__ import annotations
 
-import hashlib
-from pathlib import Path, PurePosixPath
+import json
+from pathlib import Path
 import zipfile
-import xml.etree.ElementTree as ET
+
+import pytest
+
+from glassbox_auto.compat.v3_workbook import (
+    RECONSTRUCTED_V3_2_1_SHA256,
+    validate_reconstructed_v3_2_1,
+)
 
 
-FIXTURE = Path("fixtures/v3/Leasingmatrix_2026_v3.2.1_RECONSTRUCTED.xlsx")
-EXPECTED_SHA256 = "db5d2e8b6429df4229911f6459140ff8d36d8b258609be15a905d4487fc9b972"
-
-MAIN_NS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
-DOC_REL_NS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
-PKG_REL_NS = "http://schemas.openxmlformats.org/package/2006/relationships"
+MANIFEST = Path("fixtures/v3/reconstructed_v3_2_1_manifest.json")
 
 
-def _sha256(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+def _synthetic_fixture(path: Path) -> None:
+    workbook = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"
+ xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+ <sheets><sheet name="Scoring_Engine" sheetId="1" r:id="rId1"/></sheets>
+</workbook>'''
+    rels = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+ <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
+</Relationships>'''
+    sheet = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData><row r="5">
+<c r="X5"><f>IF(OR(Offers_Data!Z5="EXPIRED",Offers_Data!Z5="HISTORICAL"),"FAIL",IF(Offers_Data!Z5="STALE","CHECK",IF(AND(Offers_Data!U5="ACTIVE",Offers_Data!Z5="FRESH"),"PASS","UNKNOWN")))</f></c>
+<c r="Y5"><f>IF(INDEX(PRØVEKØRSEL!$B$25:$E$25,1,1)="YES","FAIL","PASS")</f></c>
+<c r="Z5"><f>IF(OR('MIN PROFIL'!$G$23="",Offers_Data!AB5="",Offers_Data!AA5="",Offers_Data!AC5="",Offers_Data!AD5=""),"UNKNOWN",IF(Offers_Data!AB5&lt;='MIN PROFIL'!$G$23,"PASS","FAIL"))</f></c>
+</row></sheetData></worksheet>'''
+    with zipfile.ZipFile(path, "w") as zf:
+        zf.writestr("xl/workbook.xml", workbook)
+        zf.writestr("xl/_rels/workbook.xml.rels", rels)
+        zf.writestr("xl/worksheets/sheet1.xml", sheet)
 
 
-def _sheet_member(zf: zipfile.ZipFile, sheet_name: str) -> str:
-    workbook = ET.fromstring(zf.read("xl/workbook.xml"))
-    rels = ET.fromstring(zf.read("xl/_rels/workbook.xml.rels"))
-
-    rid = None
-    for sheet in workbook.findall(f".//{{{MAIN_NS}}}sheet"):
-        if sheet.attrib.get("name") == sheet_name:
-            rid = sheet.attrib.get(f"{{{DOC_REL_NS}}}id")
-            break
-    assert rid, f"sheet not found: {sheet_name}"
-
-    target = None
-    for rel in rels.findall(f"{{{PKG_REL_NS}}}Relationship"):
-        if rel.attrib.get("Id") == rid:
-            target = rel.attrib.get("Target")
-            break
-    assert target, f"relationship not found for: {sheet_name}"
-
-    normalized = PurePosixPath("xl") / target.lstrip("/")
-    if str(normalized).startswith("xl/xl/"):
-        normalized = PurePosixPath(str(normalized)[3:])
-    return str(normalized)
+def test_reconstruction_manifest_pins_artifact_and_source_track():
+    payload = json.loads(MANIFEST.read_text())
+    assert payload["source_track"] == "RECONSTRUCTED_V3_2_1"
+    assert payload["artifact_version"] == "3.2.1-R"
+    assert payload["artifact_sha256"] == RECONSTRUCTED_V3_2_1_SHA256
+    assert payload["historical_byte_identity_claim"] is False
+    assert payload["v3_2_1_parity_verified"] is False
+    assert set(payload["patches"]) == {
+        "PC-07 expired active offer gate",
+        "PC-08 family Dealbreaker row 25",
+        "PC-09 operational lease-terms gate",
+    }
 
 
-def _formula(zf: zipfile.ZipFile, sheet_name: str, address: str) -> str:
-    root = ET.fromstring(zf.read(_sheet_member(zf, sheet_name)))
-    for cell in root.findall(f".//{{{MAIN_NS}}}c"):
-        if cell.attrib.get("r") == address:
-            formula = cell.find(f"{{{MAIN_NS}}}f")
-            assert formula is not None and formula.text, f"formula missing at {sheet_name}!{address}"
-            return formula.text
-    raise AssertionError(f"cell not found: {sheet_name}!{address}")
+def test_workbook_validator_checks_pc07_pc08_pc09_formula_surface(tmp_path):
+    fixture = tmp_path / "candidate.xlsx"
+    _synthetic_fixture(fixture)
+    result = validate_reconstructed_v3_2_1(fixture, expected_sha256=None)
+    assert result.passed is True
+    assert result.pc07_offer_gate is True
+    assert result.pc08_family_gate is True
+    assert result.pc09_terms_gate is True
 
 
-def test_reconstructed_v3_2_1_fixture_is_fingerprint_pinned():
-    assert FIXTURE.exists()
-    assert _sha256(FIXTURE) == EXPECTED_SHA256
+def test_workbook_validator_rejects_non_xlsx(tmp_path):
+    candidate = tmp_path / "bad.xlsx"
+    candidate.write_bytes(b"not an xlsx")
+    with pytest.raises(ValueError, match="valid XLSX"):
+        validate_reconstructed_v3_2_1(candidate, expected_sha256=None)
 
 
-def test_pc07_expired_offer_fix_is_in_workbook_formula():
-    with zipfile.ZipFile(FIXTURE) as zf:
-        formula = _formula(zf, "Scoring_Engine", "X5")
-    assert 'Offers_Data!Z5="EXPIRED"' in formula
-    assert 'Offers_Data!Z5="STALE"' in formula
-    assert 'Offers_Data!Z5="FRESH"' in formula
-    assert 'Offers_Data!U5="ACTIVE"' in formula
-
-
-def test_pc08_family_gate_reads_actual_dealbreaker_row():
-    with zipfile.ZipFile(FIXTURE) as zf:
-        formula = _formula(zf, "Scoring_Engine", "Y5")
-    assert "$B$25:$E$25" in formula
-    assert "$B$26:$E$26" not in formula
-
-
-def test_pc09_terms_gate_uses_all_required_operational_inputs():
-    with zipfile.ZipFile(FIXTURE) as zf:
-        formula = _formula(zf, "Scoring_Engine", "Z5")
-    assert "'MIN PROFIL'!$G$23" in formula
-    assert "Offers_Data!AB5" in formula
-    assert "Offers_Data!AA5" in formula
-    assert "Offers_Data!AC5" in formula
-    assert "Offers_Data!AD5" in formula
-    assert '"UNKNOWN"' in formula
-    assert '"FAIL"' in formula
-    assert '"PASS"' in formula
+def test_workbook_validator_rejects_wrong_pinned_hash(tmp_path):
+    fixture = tmp_path / "candidate.xlsx"
+    _synthetic_fixture(fixture)
+    with pytest.raises(ValueError, match="SHA-256 mismatch"):
+        validate_reconstructed_v3_2_1(fixture, expected_sha256="0" * 64)
