@@ -43,10 +43,14 @@ def evaluate_candidate(
 ) -> CandidateResult:
     """Evaluate one candidate.
 
-    ``unknown_gate_blocks_eligibility`` defaults to the generic fail-closed
-    Engine v0.1 behavior. The recovered Leasingmatrix v3 implementation uses
-    ``False``: a gate FAIL is ineligible, while a gate UNKNOWN remains ranked
-    but is NOT_READY and lowers confidence/readiness on the decision surface.
+    ``unknown_gate_blocks_eligibility`` controls only *decision-critical* gate
+    unknowns. Non-critical UNKNOWN gates reduce evidence coverage but do not
+    affect eligibility or readiness, matching Revision A D-V3.25.
+
+    The generic Engine v0.1 default is fail-closed for decision-critical
+    UNKNOWN gates. The recovered Leasingmatrix v3 implementation uses
+    ``False``: decision-critical UNKNOWN remains rank-eligible but is NOT_READY.
+    Gate FAIL remains ineligible in both policies.
     """
     if offer.vehicle_id != vehicle.vehicle_id:
         raise ValueError("Offer vehicle_id does not match vehicle")
@@ -70,14 +74,22 @@ def evaluate_candidate(
         profile.dimension_weights,
     )
 
-    gate_states = [r.gate_state for r in criterion_results if r.gate_state is not None]
+    criteria_by_id = {criterion.criterion_id: criterion for criterion in profile.criteria}
+    gate_states = [result.gate_state for result in criterion_results if result.gate_state is not None]
+    decision_critical_unknown = any(
+        result.gate_state == GateState.UNKNOWN
+        and criteria_by_id[result.criterion_id].gate is not None
+        and criteria_by_id[result.criterion_id].gate.decision_critical
+        for result in criterion_results
+    )
+
     if GateState.FAIL in gate_states:
         reasons.append("failed_gate")
-    if GateState.UNKNOWN in gate_states:
+    if decision_critical_unknown:
         reasons.append("decision_critical_unknown")
-    if any(r.reason == "unit_mismatch" for r in criterion_results if r.active):
+    if any(result.reason == "unit_mismatch" for result in criterion_results if result.active):
         reasons.append("unit_mismatch")
-    if any(r.reason == "type_mismatch" for r in criterion_results if r.active):
+    if any(result.reason == "type_mismatch" for result in criterion_results if result.active):
         reasons.append("type_mismatch")
     if score is None:
         reasons.append("no_scorable_criteria")
@@ -130,7 +142,7 @@ def _reset_ranking_state(candidate: CandidateResult) -> CandidateResult:
 def rank_candidates(candidates: list[CandidateResult]) -> list[CandidateResult]:
     candidates = [_reset_ranking_state(candidate) for candidate in candidates]
 
-    eligible_currencies = {c.currency for c in candidates if c.eligibility == Eligibility.ELIGIBLE}
+    eligible_currencies = {candidate.currency for candidate in candidates if candidate.eligibility == Eligibility.ELIGIBLE}
     if len(eligible_currencies) > 1:
         raise ValueError("Cannot rank eligible candidates across currencies without explicit conversion")
 
@@ -141,15 +153,15 @@ def rank_candidates(candidates: list[CandidateResult]) -> list[CandidateResult]:
     }
     ranked = sorted(
         candidates,
-        key=lambda c: (
-            eligibility_order[c.eligibility],
-            -(c.score if c.score is not None else float("-inf")),
-            -c.evidence_coverage,
-            c.candidate_id,
+        key=lambda candidate: (
+            eligibility_order[candidate.eligibility],
+            -(candidate.score if candidate.score is not None else float("-inf")),
+            -candidate.evidence_coverage,
+            candidate.candidate_id,
         ),
     )
 
-    eligible = [c for c in ranked if c.eligibility == Eligibility.ELIGIBLE and c.score is not None]
+    eligible = [candidate for candidate in ranked if candidate.eligibility == Eligibility.ELIGIBLE and candidate.score is not None]
     if len(eligible) < 2:
         return ranked
 
