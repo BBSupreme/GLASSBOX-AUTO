@@ -1,99 +1,65 @@
-# Engine v0.1 — Known Limitations and Deferred Validation
+# Engine 0.1.0 — Known Limitations and Deferred Validation
 
-**Status:** explicit release debt after source recovery on 2026-09-03  
-**Applies to:** PR #2 / `build/engine-v0.1`
+**Status:** explicit release debt after recovered-source adversarial review, 2026-09-03
 
-This document separates what Engine v0.1 now enforces from what the recovered originals prove, and from what still cannot be claimed.
+## P1 — Exact v3.2.1 parity is not proven
 
-## P1 — Exact v3.2.1 parity is not yet proven
+Recovered originals include v2.1, a later workbook whose Change_Log reaches v3.2, Revision A, implementation handover and earlier QA scripts. No recovered artifact proves itself to be the final v3.2.1 fixture/harness.
 
-A substantial original package is now recovered: v2.1, a later v3 workbook whose internal Change_Log reaches v3.2, Revision A, the v3 implementation handover, and the earlier build/regression/verification scripts.
+**Consequence:** 0.1.0 may release as an audited substrate; never label it `v3.2.1-parity-verified`.
 
-This closes several previously unknown semantics, but no recovered artifact identifies itself as the later **v3.2.1** build/harness referenced by the final review.
+## P1 — Close-call coverage conflict
 
-**Release consequence:** v0.1 may be evaluated as a Rev-A-capable headless substrate, but must not be described as a verified drop-in reproduction of v3.2.1.
+Revision A D-V3.23 uses weight coverage at the 95% threshold. The recovered v3/v3.2 workbook uses four critical-evidence checks. Engine 0.1.0 follows binding Revision A. The historical implementation difference remains unresolved until a later authoritative fixture is recovered.
 
-## P1 — Close-call coverage has a recovered spec/implementation conflict
+## P1 — First-class Confidence is not yet modeled
 
-Exact Revision A D-V3.23 says the 0.20→0.15 threshold switch uses **weight coverage** at the 95% boundary.
+Revision A D-V3.25 says non-critical UNKNOWNs reduce Confidence without reducing Readiness. Engine 0.1.0 now correctly prevents non-critical UNKNOWN gates from blocking eligibility/readiness, but it does not expose a first-class Confidence output. A zero-weight gate-only check therefore cannot be represented by weighted evidence coverage alone.
 
-The recovered v3/v3.2 workbook instead uses a four-item critical-evidence count (fresh offer, NCAP, insurance quote, family test) for that switch.
+**Consequence:** historical Confidence belongs in the `validation/v3-parity` compatibility layer.
 
-The current engine uses evidence-weight coverage, which follows the binding Revision A text. The later v3.2.1 fixture may show whether the workbook implementation was subsequently corrected.
+## P1 — Historical tri-state Readiness is not yet modeled
 
-**Release consequence:** keep the conflict explicit; do not claim historical v3.2 parity for close-call coverage semantics.
+Recovered v3 uses READY / NEARLY READY / NOT READY. Generic 0.1.0 exposes READY / NOT_READY. The parity adapter must recover the exact transition rules, including STALE/EXPIRED effects, without changing the generic core merely for display parity.
 
-## P1 — Gate UNKNOWN has two explicitly represented policies
+## P1 — Historical household Economics adapter is incomplete
 
-Recovered v3 semantics are:
+Recovered v3 Economics includes lease payment, electricity, insurance, parking, tax/wear reserve and over-km effects. Generic 0.1.0 intentionally provides reusable lease cash/mileage primitives rather than baking household assumptions into core.
 
-- gate `FAIL` → ineligible;
-- gate `UNKNOWN` remains rank-eligible but makes a decision-critical candidate NOT_READY.
+The recovered v3 under-use treatment is now representable explicitly with `require_unused_km_value=False`; generic default remains stricter.
 
-Engine v0.1 can represent this with `unknown_gate_blocks_eligibility=False`. Its generic default remains the stricter fail-closed behavior (`True`) for non-v3 profiles.
+## P1 — Offer freshness is not a service yet
 
-**Release consequence:** any v3 compatibility fixture/profile must opt into the recovered policy. Do not call the generic default historical-v3 behavior.
+Evidence carries `as_of`, but 0.1.0 does not implement ACTIVE/STALE/EXPIRED evaluation or freshness cadence. Recovered workbook semantics should be implemented in ingestion/parity work.
 
-## RECOVERED — Canonical v3 utility and Safety/Family semantics
+## P1 — Composite historical gates require an adapter
 
-These are no longer missing for v3/v3.2:
+Core gates are atomic attribute/operator/threshold checks with explicit criticality. Historical checks such as NCAP year+stars, family-test state and lease-terms completeness are composite. The preferred approach is to derive auditable attributes with provenance in the compatibility adapter instead of expanding core gate syntax prematurely.
 
-- Need utility = 8/10 = 0.8;
-- Range anchors = 200/350/500 km;
-- Baggage anchors = 300/profile-need/600 L;
-- DC 10–80 anchors = 45/28/18 min, lower is better;
-- NCAP gate = at least 5 stars and protocol year at least 2020;
-- Family subweights = 30% baggage / 25% by-fit / 30% child-seat-stroller / 15% child protection;
-- child-protection gradient = 70%→0 / 95%→10, with UNKNOWN renormalized out of Family.
+## P1 — Purchase remains method-blocked
 
-Exact v3.2.1 parity still requires the later fixture, but these values should no longer be described as unrecovered.
+`BUY_NEW` and `BUY_USED` are structural only. Exact Purchase Draft A, P1–P3 findings and **purchase-layer** Economics Floor/Need/Stretch anchors remain missing. Vehicle utility anchors recovered from Revision A are not substitutes.
 
-## RECOVERED / REFRAMED — Liquidity was an interim v2.1 score, not a proven v3 gate
+## P2 — External contracts and hardening
 
-The recovered v2.1 workbook establishes the historical liquidity treatment:
+- `Evidence.as_of` remains an untyped string.
+- stable JSON/CSV serialization and schema migrations are not published.
+- CI Actions use version tags instead of immutable SHAs.
+- recovered binary v2.1/v3 workbooks are fingerprinted but not yet committed through this connector workflow.
 
-- preferred first payment = 30,000 DKK;
-- preferred first-12-month cash burden = 85,000 DKK;
-- 50/50 blend of threshold fit and relative-to-cheapest 12-month burden.
+## Recovered values no longer considered missing
 
-The full recovered v3 five-dimension architecture does not expose a standalone liquidity dimension or gate.
+- Need utility = 0.8;
+- Range 200/350/500 km;
+- baggage 300/profile-need/600 L;
+- DC 45/28/18 min lower-is-better;
+- Family 30/25/30/15;
+- child protection 70%→0 / 95%→10;
+- NCAP ≥5 stars + protocol year ≥2020;
+- v2.1 liquidity thresholds 30,000 DKK / 85,000 DKK and 50/50 blend; this was an interim score, not a recovered v3 liquidity gate.
 
-**Release consequence:** the old limitation “authoritative liquidity guard missing” is retired. Preserve the v2.1 liquidity score as historical behavior; do not invent a v3 liquidity gate unless a later source explicitly reintroduces it.
+## Release boundary
 
-## P1 — Purchase modes remain method-blocked
-
-`BUY_NEW` and `BUY_USED` exist structurally only. Decision-ready purchase economics remain blocked until the exact Acquisition/Purchase Draft A source, P1–P3 adversarial findings, and **purchase-layer** Economics Floor/Need/Stretch anchors are recovered and resolved.
-
-The vehicle utility anchors recovered above are not purchase economics anchors.
-
-This is deliberate fail-closed behavior, not an implementation defect.
-
-## P1 — Offer freshness/validity is outside v0.1
-
-Evidence can carry `as_of`, but v0.1 does not itself decide whether a live-market offer is active, expired or superseded. The recovered workbook has freshness semantics, but current-market ingestion remains responsible for validating validity before presenting a deal as current.
-
-## P2 — Evidence date is not yet a typed temporal schema
-
-`Evidence.as_of` is currently a string. A future schema version should normalize date/time semantics and define offer validity windows explicitly.
-
-## P2 — External schema/serialization contract is not versioned yet
-
-The Python dataclasses are the current internal canonical model, but a stable JSON/CSV interchange schema and migration/versioning contract have not yet been published.
-
-## P2 — Binary source artifacts are recovered locally but not yet committed
-
-The v2.1 and later v3 workbooks have been recovered in the migration environment and fingerprinted, but the current GitHub connector path does not provide a binary contents upload in this workflow. Exact binary repository import therefore remains pending.
-
-Textual recovery status and hashes are recorded in `docs/RECOVERED_V3_ARTIFACTS_2026-09-03.md`.
-
-## P2 — CI action supply-chain hardening
-
-The workflow uses version tags for GitHub Actions rather than immutable commit SHAs. This does not affect decision semantics, but production repository hardening should pin trusted actions and update them deliberately.
-
-## Merge boundary
-
-The recovery does not justify a v3.2.1 parity claim. It does materially strengthen the substrate and has already falsified and corrected earlier reconstructed assumptions.
-
-> **Allowed claim:** Engine v0.1 is an audited headless substrate that can represent the recovered Revision A/v3 gate semantics and currently recoverable method.
+> **Allowed:** Engine 0.1.0 is an audited, source-recovery-corrected headless substrate with explicit compatibility controls for recovered Leasingmatrix v3 semantics.
 >
-> **Not yet allowed:** Engine v0.1 is a verified bit-for-bit replacement for Leasingmatrix v3.2.1 or a production-complete lease/new-buy/used-buy decision system.
+> **Not allowed:** Engine 0.1.0 is a verified v3.2.1 replacement or production-complete lease/new-buy/used-buy system.
