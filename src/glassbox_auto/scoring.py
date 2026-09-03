@@ -39,6 +39,18 @@ def piecewise_utility(value: float, anchors: UtilityAnchors) -> float:
     return 1.0
 
 
+def _is_number(value) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
+def _gate_type_matches(value, threshold) -> bool:
+    if _is_number(threshold):
+        return _is_number(value)
+    if isinstance(threshold, bool):
+        return isinstance(value, bool)
+    return isinstance(value, type(threshold))
+
+
 def _compare(value, operator: str, threshold) -> bool:
     ops = {
         ">=": lambda a, b: a >= b,
@@ -59,7 +71,12 @@ def evaluate_gate(observed: ObservedValue | None, gate: GateDefinition) -> GateS
         return GateState.UNKNOWN
     if GRADE_RANK[observed.evidence.grade] < GRADE_RANK[gate.minimum_evidence]:
         return GateState.UNKNOWN
-    return GateState.PASS if _compare(observed.value, gate.operator, gate.threshold) else GateState.FAIL
+    if not _gate_type_matches(observed.value, gate.threshold):
+        return GateState.UNKNOWN
+    try:
+        return GateState.PASS if _compare(observed.value, gate.operator, gate.threshold) else GateState.FAIL
+    except TypeError:
+        return GateState.UNKNOWN
 
 
 def _effective_weight(criterion: Criterion, dimension_weights: dict[str, float]) -> float:
@@ -80,7 +97,7 @@ def score_candidate(
     dimension_weights: dict[str, float] | None = None,
 ):
     dimension_weights = dimension_weights or {}
-    total_active_weight = sum(_effective_weight(c, dimension_weights) for c in criteria if c.active)
+    total_active_weight = sum(_effective_weight(criterion, dimension_weights) for criterion in criteria if criterion.active)
     data_weight = 0.0
     sufficient_weight = 0.0
     scored_weight = 0.0
@@ -96,12 +113,17 @@ def score_candidate(
         observed = attributes.get(criterion.attribute)
         data_present = observed is not None and observed.value is not None
         unit_matches = bool(not data_present or criterion.unit is None or observed.unit == criterion.unit)
-        numeric_required = criterion.anchors is not None
-        type_matches = bool(
+        anchor_type_matches = bool(
             not data_present
-            or not numeric_required
-            or (isinstance(observed.value, (int, float)) and not isinstance(observed.value, bool))
+            or criterion.anchors is None
+            or _is_number(observed.value)
         )
+        gate_type_matches = bool(
+            not data_present
+            or criterion.gate is None
+            or _gate_type_matches(observed.value, criterion.gate.threshold)
+        )
+        type_matches = anchor_type_matches and gate_type_matches
         evidence_sufficient = bool(
             data_present
             and unit_matches
@@ -146,6 +168,6 @@ def score_candidate(
     evidence_coverage = 0.0 if total_active_weight == 0 else sufficient_weight / total_active_weight
 
     if scored_weight:
-        results = [replace(r, normalized_weight=(r.weight / scored_weight if r.scorable else 0.0)) for r in results]
+        results = [replace(result, normalized_weight=(result.weight / scored_weight if result.scorable else 0.0)) for result in results]
 
     return score, data_coverage, evidence_coverage, tuple(results)
