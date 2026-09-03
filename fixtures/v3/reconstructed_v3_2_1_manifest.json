@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "source_track": "RECONSTRUCTED_V3_2_1",
+  "artifact": "fixtures/v3/Leasingmatrix_2026_v3.2.1_RECONSTRUCTED.xlsx",
+  "artifact_version": "3.2.1-R",
+  "artifact_sha256": "db5d2e8b6429df4229911f6459140ff8d36d8b258609be15a905d4487fc9b972",
+  "base_artifact": "Leasingmatrix_2026_v3(3).xlsx",
+  "base_sha256": "6c9ec3f1f341ba7100f67b2796a39ff23532e674eefe523d126117fd6dd0dab3",
+  "revision_a_sha256": "d826d621393010db681d553d6d936d6e02f51107e8a660130c04629e567ce8f5",
+  "patches": [
+    "PC-07 expired active offer gate",
+    "PC-08 family Dealbreaker row 25",
+    "PC-09 operational lease-terms gate"
+  ],
+  "catalog_expansion": false,
+  "historical_byte_identity_claim": false,
+  "v3_2_1_parity_verified": false,
+  "remaining_open_conflicts": ["PC-01 close-call coverage authority"]
+}
