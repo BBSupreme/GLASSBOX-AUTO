@@ -20,7 +20,8 @@ All notable engine changes are documented here. Historical workbook version labe
 - **PC-08:** family Dealbreaker uses `PRØVEKØRSEL` row 25 rather than the Date row 26;
 - **PC-09:** acceptable leasing terms require actual/max binding period, minimum price, termination and return evidence;
 - non-finite NCAP and lease-term numeric inputs become UNKNOWN rather than silently passing;
-- missing derived NCAP components cannot inherit VERIFIED evidence.
+- missing derived NCAP components cannot inherit VERIFIED evidence;
+- canonical Family/terms gates reject truthy strings such as `"NO"`, `"NEJ"` and `"JA"` where actual booleans are required, preventing Python truthiness from changing eligibility.
 
 ### Explicitly unresolved / not claimed
 - **PC-01:** Revision A uses evidence-weight coverage at the 95% close-call switch, while recovered v3.2 uses four critical checks; both remain explicit;
