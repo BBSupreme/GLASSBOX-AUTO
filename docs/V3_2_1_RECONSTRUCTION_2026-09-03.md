@@ -20,9 +20,15 @@ Recovered material does include the later v3 workbook whose internal `Change_Log
 |---|---|---|
 | recovered `Leasingmatrix_2026_v3(3).xlsx` | v3.2 observed workbook base | `6c9ec3f1f341ba7100f67b2796a39ff23532e674eefe523d126117fd6dd0dab3` |
 | recovered Revision A | binding method decisions | `d826d621393010db681d553d6d936d6e02f51107e8a660130c04629e567ce8f5` |
-| `Leasingmatrix_2026_v3.2.1_RECONSTRUCTED.xlsx` | generated compliance fixture | `db5d2e8b6429df4229911f6459140ff8d36d8b258609be15a905d4487fc9b972` |
+| generated `Leasingmatrix_2026_v3.2.1_RECONSTRUCTED.xlsx` | 3.2.1-R compliance output | `db5d2e8b6429df4229911f6459140ff8d36d8b258609be15a905d4487fc9b972` |
 
-The reconstructed workbook is stored under `fixtures/v3/` and must keep the `RECONSTRUCTED` suffix unless an actual historical artifact is recovered and independently fingerprinted.
+The fingerprint and reconstruction metadata are committed in `fixtures/v3/reconstructed_v3_2_1_manifest.json`.
+
+### Binary transport note
+
+The workbook was generated and validated in the project execution environment. An attempted binary write through the current GitHub connector corrupted the payload and was deliberately removed rather than accepted as an `.xlsx` file. The repository therefore stores the pinned manifest, reconstruction record and executable workbook validator; the generated workbook remains the deliverable artifact until it is imported through a byte-safe Git/Git-LFS path.
+
+This transport limitation must never be disguised by changing the pinned hash or by treating a corrupt blob as the fixture.
 
 ## 3. Patch scope
 
@@ -62,17 +68,21 @@ Revision A specifies the 95% close-call threshold switch using evidence **weight
 
 This reconstruction does not implement `BUY_NEW` / `BUY_USED` economics and does not invent the missing purchase P1-P3 findings or purchase Economics anchors.
 
-## 5. Acceptance contract
+## 5. Validation contract
 
-The reconstructed workbook becomes an authoritative **generated fixture**, not an authoritative recovered historical source, only when all of the following are green:
+The repository contains `validate_reconstructed_v3_2_1`, which verifies:
 
-1. repository CI verifies its SHA-256;
-2. CI opens the XLSX package and validates the patched X/Y/Z formula surfaces;
-3. Python compatibility tests reproduce both observed v3.2 behavior and corrected canonical behavior;
-4. adversarial review has no P0 findings;
-5. documentation continues to distinguish `RECOVERED_V3_2`, `REVISION_A` and `RECONSTRUCTED_V3_2_1`.
+1. the pinned SHA-256 when validating the released generated artifact;
+2. that the file is a valid XLSX/ZIP package;
+3. PC-07 formula tokens in `Scoring_Engine!X5`;
+4. PC-08 row-25 Dealbreaker lookup in `Scoring_Engine!Y5`;
+5. PC-09 operational terms inputs in `Scoring_Engine!Z5`.
 
-Allowed claim after acceptance:
+CI unit-tests the validator itself and pins the manifest. The generated workbook was separately validated against the pinned fingerprint in the project environment. Once a byte-safe binary import path is used, the same validator can gate the committed workbook directly.
+
+## 6. Release claim boundary
+
+Allowed claim:
 
 > `3.2.1-R` is GLASSBOX-AUTO's reproducible compliance reconstruction of the recovered v3.2 workbook under Revision A.
 
