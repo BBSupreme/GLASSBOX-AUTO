@@ -2,7 +2,8 @@
 
 **Branch:** `validation/v3-parity`  
 **Base:** Engine 0.1.0 merge `e7cf265c16320b0f911cf2eca1e5b35834fb0ca1`  
-**Status:** validation work; reconstructed v3.2.1 fixture available, historical v3.2.1 parity not claimed
+**Release candidate:** Engine 0.2.0  
+**Status:** validation work; reconstructed v3.2.1 output exists, historical v3.2.1 parity not claimed
 
 ## 1. Objective
 
@@ -41,9 +42,11 @@ Confirmed examples:
 
 ### `RECONSTRUCTED_V3_2_1`
 
-Controlled generated fixture `fixtures/v3/Leasingmatrix_2026_v3.2.1_RECONSTRUCTED.xlsx`, built from recovered v3.2 and Revision A after the historical v3.2.1 artifact could not be found.
+Controlled generated output `Leasingmatrix_2026_v3.2.1_RECONSTRUCTED.xlsx`, built from recovered v3.2 and Revision A after the historical v3.2.1 artifact could not be found.
 
-It contains the compliance fixes for PC-07, PC-08 and PC-09 and is labelled `3.2.1-R`. Its expected SHA-256 is `db5d2e8b6429df4229911f6459140ff8d36d8b258609be15a905d4487fc9b972`.
+It contains the compliance fixes for PC-07, PC-08 and PC-09 and is labelled `3.2.1-R`. Its pinned SHA-256 is `db5d2e8b6429df4229911f6459140ff8d36d8b258609be15a905d4487fc9b972`; the repository records that fingerprint in `fixtures/v3/reconstructed_v3_2_1_manifest.json` and exposes an executable validator.
+
+The current GitHub connector is not a byte-safe transport for this XLSX; a corrupt attempted blob was removed. This source track therefore describes the generated artifact and its pinned validation contract, not a binary currently committed in Git.
 
 This track may demonstrate reproducible reconstruction. It may not be described as recovered history or as bit-for-bit v3.2.1 parity.
 
@@ -57,17 +60,11 @@ This track may demonstrate reproducible reconstruction. It may not be described 
 | PC-04 | Economics scope | method-level economics dimension | observed household monthly cost includes lease, energy, insurance, parking, tax/wear reserve, over-km | **ADAPTER IMPLEMENTED / FIXTURE PRESENT** |
 | PC-05 | Offer freshness | weekly shortlist checks; STALE caps Confidence/Readiness, EXPIRED #1 -> NOT READY | workbook has ACTIVE/STALE/EXPIRED behavior | **ADAPTER IMPLEMENTED** |
 | PC-06 | Composite gates | gates must be operationally defined | NCAP, family test and lease terms are composite checks | **ADAPTER IMPLEMENTED; QA REQUIRED** |
-| PC-07 | ACTIVE offer whose `Gyldig til` has passed | expired offer must not remain decision-eligible; implementation handover reports EXPIRED -> INELIGIBLE | `Offers_Data!Z` becomes `EXPIRED`, but recovered `Scoring_Engine!X` returns `PASS` for ACTIVE+EXPIRED | **DIFFERENCE; fixed in 3.2.1-R, observed-v3.2 behavior retained for parity** |
-| PC-08 | Family-test Dealbreaker | `Dealbreaker? = YES` must fail the family gate | Dealbreaker is row 25, but recovered `Scoring_Engine!Y` reads row 26 (`Dato`) | **DIFFERENCE; fixed in 3.2.1-R, observed-v3.2 behavior retained for parity** |
-| PC-09 | Acceptable leasing terms | operational gate requires maximum/actual binding, minimum price, termination and return evidence | recovered `Scoring_Engine!Z` passes solely when minimum price > 0 | **DIFFERENCE; fixed in 3.2.1-R, observed-v3.2 behavior retained for parity** |
+| PC-07 | ACTIVE offer whose `Gyldig til` has passed | expired offer must not remain decision-eligible | recovered `Scoring_Engine!X` returns `PASS` for ACTIVE+EXPIRED | **DIFFERENCE; fixed in 3.2.1-R, observed-v3.2 retained for parity** |
+| PC-08 | Family-test Dealbreaker | `Dealbreaker? = YES` must fail the family gate | Dealbreaker is row 25, recovered `Scoring_Engine!Y` reads row 26 (`Dato`) | **DIFFERENCE; fixed in 3.2.1-R, observed-v3.2 retained for parity** |
+| PC-09 | Acceptable leasing terms | maximum/actual binding, minimum price, termination and return evidence required | recovered `Scoring_Engine!Z` passes solely when minimum price > 0 | **DIFFERENCE; fixed in 3.2.1-R, observed-v3.2 retained for parity** |
 
-### Formula evidence
-
-PC-07 recovered formulas imply ACTIVE + elapsed `Gyldig til` -> freshness `EXPIRED` -> gate `PASS`, because the ACTIVE branch tests only `STALE`.
-
-PC-08 recovered `PRØVEKØRSEL` labels `Dealbreaker?` on row 25 and `Dato` on row 26, while `Scoring_Engine!Y` checks row 26 for `YES`.
-
-PC-09 recovered `Scoring_Engine!Z` is equivalent to `IF(minimum_price>0, PASS, UNKNOWN)`, which does not operationalize the remaining required lease-term evidence.
+PC-01 is intentionally unresolved. PC-07/08/09 are not ambiguities: they are observed workbook differences against the recovered intended/binding contract.
 
 ## 4. Parity levels
 
@@ -86,7 +83,7 @@ Known candidate sets produce the same eligibility, ranking, close-call, Confiden
 ### L4 — Exact historical fixture
 A clean clone runs the exact historical workbook/harness fixture and reconciles every expected output. `v3.2.1-parity-verified` remains reserved for an actual recovered historical v3.2.1 artifact.
 
-The reconstructed `3.2.1-R` fixture does **not** satisfy L4 historical parity by definition.
+The reconstructed `3.2.1-R` output does **not** satisfy L4 historical parity by definition.
 
 ## 5. Fixture contract
 
@@ -111,8 +108,8 @@ The adapter may:
 - calculate historical Confidence/Readiness surfaces;
 - calculate historical household Economics from explicit inputs;
 - select an explicitly named coverage strategy;
-- expose observed-workbook behavior beside a canonical correction when a regression itself is part of the parity evidence;
-- validate a generated workbook fixture against a pinned fingerprint.
+- expose observed-workbook behavior beside a canonical correction when a regression itself is part of parity evidence;
+- validate a generated workbook against its pinned fingerprint and formula surface.
 
 The adapter may not:
 - change generic engine defaults merely to imitate a workbook;
@@ -121,22 +118,23 @@ The adapter may not:
 - label inferred data VERIFIED;
 - enable purchase modes.
 
-## 7. Acceptance criteria for this branch
+## 7. Acceptance criteria for Engine 0.2.0
 
 1. source-track types and recovered constants are tested;
 2. both close-call coverage strategies are independently reproducible;
 3. recovered-v3 critical-four Confidence is reproducible;
 4. historical Readiness logic is implemented only where operationally supported;
 5. source-backed household Economics adapter has formula fixtures;
-6. composite gate derivations preserve lineage and fail closed on incomplete/invalid data;
+6. composite gates preserve lineage and fail closed on incomplete/non-finite data;
 7. PC-07/08/09 reproduce observed v3.2 behavior and separately test corrected canonical behavior;
-8. CI fingerprints and opens the reconstructed XLSX and verifies its patched formula surfaces;
-9. parity report lists MATCH / DIFFERENCE / UNRESOLVED rather than hiding discrepancies;
-10. CI and adversarial review pass before merge/version bump.
+8. reconstruction manifest pins source/output hashes and the workbook validator is unit-tested;
+9. generated 3.2.1-R workbook passes the validator in the project execution environment;
+10. parity report lists MATCH / DIFFERENCE / UNRESOLVED rather than hiding discrepancies;
+11. final CI and adversarial review pass before merge.
 
 ## 8. Explicit non-goals
 
 - claiming historical v3.2.1 parity without its exact artifact;
-- rebuilding Excel as the source of truth;
+- treating the generated 3.2.1-R as recovered history;
 - live market refresh;
 - purchase/new-buy/used-buy method implementation.
