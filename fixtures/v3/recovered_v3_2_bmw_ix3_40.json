@@ -1,0 +1,48 @@
+{
+  "fixture_id": "recovered-v3-2-bmw-ix3-40-economics",
+  "source_track": "RECOVERED_V3_2",
+  "source_artifact": "Leasingmatrix_2026_v3.xlsx",
+  "source_sha256": "6c9ec3f1f341ba7100f67b2796a39ff23532e674eefe523d126117fd6dd0dab3",
+  "source_note": "Recovered upload named Leasingmatrix_2026_v3(3).xlsx; internal Change_Log reaches v3.2, not v3.2.1.",
+  "vehicle_id": "BMW-IX3-40",
+  "profile": {
+    "expected_annual_km": 9000,
+    "stress_annual_km": 15000,
+    "default_insurance_annual": 6500,
+    "default_kwh_per_100km": 19,
+    "home_charging_share": 0.8,
+    "home_electricity_price": 1.4,
+    "public_electricity_price": 3.5,
+    "parking_annual": 1200,
+    "vehicle_tax_annual": 840,
+    "wear_reserve_total": 4000
+  },
+  "offer": {
+    "contracted_annual_km": 15000,
+    "term_months": 48,
+    "first_payment": 35000,
+    "monthly_payment": 5495,
+    "establishment_fee": 4995,
+    "admin_monthly": 25,
+    "return_fee": 0,
+    "stated_total": 304955,
+    "overage_per_km": 2,
+    "insurance_quote_annual": null,
+    "measured_kwh_per_100km": null
+  },
+  "expected": {
+    "calculated_contract_total": 304955.0,
+    "comparison_total": 304955.0,
+    "effective_monthly": 6353.22916666667,
+    "energy_monthly": 259.35,
+    "insurance_monthly": 541.666666666667,
+    "household_monthly": 7407.57916666667,
+    "first_12_month_burden": 117887.2,
+    "stress_household_monthly": 7580.47916666667
+  },
+  "tolerance": 1e-9,
+  "known_conflicts_excluded": [
+    "PC-01 close-call coverage strategy",
+    "v3.2.1 exact parity"
+  ]
+}
