@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from enum import Enum
+from math import isfinite
 
 from glassbox_auto.models import Evidence, EvidenceGrade, EvidenceKind, GRADE_RANK, ObservedValue
 
@@ -61,6 +62,10 @@ def _unknown_derived(method: str, inputs: tuple[ObservedValue | None, ...]) -> O
     )
 
 
+def _finite_number(value: object) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and isfinite(float(value))
+
+
 def derive_ncap_gate(
     protocol_year: ObservedValue | None,
     stars: ObservedValue | None,
@@ -69,9 +74,7 @@ def derive_ncap_gate(
     raw_inputs = (protocol_year, stars)
     if protocol_year is None or stars is None or protocol_year.value is None or stars.value is None:
         return _unknown_derived("recovered_v3_ncap_gate", raw_inputs)
-    if not isinstance(protocol_year.value, (int, float)) or isinstance(protocol_year.value, bool):
-        return _unknown_derived("recovered_v3_ncap_gate", raw_inputs)
-    if not isinstance(stars.value, (int, float)) or isinstance(stars.value, bool):
+    if not _finite_number(protocol_year.value) or not _finite_number(stars.value):
         return _unknown_derived("recovered_v3_ncap_gate", raw_inputs)
 
     inputs = (protocol_year, stars)
@@ -130,22 +133,21 @@ def canonical_terms_gate(
 ) -> HistoricalCheck:
     """Revision A operationalization of acceptable lease terms.
 
-    Required evidence is: a concrete binding period, the user's maximum
+    Required evidence is a concrete binding period, the user's maximum
     acceptable binding period, known minimum price in binding, and known
-    termination/return terms. Missing required evidence is UNKNOWN. A known
-    binding-period breach or non-positive minimum price is FAIL.
+    termination/return terms. Missing or non-finite required evidence is
+    UNKNOWN. A known binding-period breach or non-positive minimum price is
+    FAIL.
     """
-    if binding_period_months is None or max_binding_period_months is None:
-        return HistoricalCheck.UNKNOWN
-    if minimum_price_in_binding is None:
+    if binding_period_months is None or max_binding_period_months is None or minimum_price_in_binding is None:
         return HistoricalCheck.UNKNOWN
     if not termination_terms_known or not return_terms_known:
         return HistoricalCheck.UNKNOWN
-    if isinstance(binding_period_months, bool) or isinstance(max_binding_period_months, bool):
+    if not _finite_number(binding_period_months):
         return HistoricalCheck.UNKNOWN
-    if not isinstance(binding_period_months, (int, float)) or not isinstance(max_binding_period_months, (int, float)):
+    if not _finite_number(max_binding_period_months):
         return HistoricalCheck.UNKNOWN
-    if not isinstance(minimum_price_in_binding, (int, float)) or isinstance(minimum_price_in_binding, bool):
+    if not _finite_number(minimum_price_in_binding):
         return HistoricalCheck.UNKNOWN
     if binding_period_months <= 0 or max_binding_period_months <= 0:
         return HistoricalCheck.UNKNOWN
