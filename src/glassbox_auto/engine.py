@@ -34,7 +34,20 @@ def _merged_attributes(vehicle: Vehicle, offer: AcquisitionOffer, derived: dict)
     return merged
 
 
-def evaluate_candidate(vehicle: Vehicle, offer: AcquisitionOffer, profile: UserProfile) -> CandidateResult:
+def evaluate_candidate(
+    vehicle: Vehicle,
+    offer: AcquisitionOffer,
+    profile: UserProfile,
+    *,
+    unknown_gate_blocks_eligibility: bool = True,
+) -> CandidateResult:
+    """Evaluate one candidate.
+
+    ``unknown_gate_blocks_eligibility`` defaults to the generic fail-closed
+    Engine v0.1 behavior. The recovered Leasingmatrix v3 implementation uses
+    ``False``: a gate FAIL is ineligible, while a gate UNKNOWN remains ranked
+    but is NOT_READY and lowers confidence/readiness on the decision surface.
+    """
     if offer.vehicle_id != vehicle.vehicle_id:
         raise ValueError("Offer vehicle_id does not match vehicle")
 
@@ -71,12 +84,17 @@ def evaluate_candidate(vehicle: Vehicle, offer: AcquisitionOffer, profile: UserP
 
     if GateState.FAIL in gate_states:
         eligibility = Eligibility.FAILED
-    elif reasons:
-        eligibility = Eligibility.BLOCKED
     else:
-        eligibility = Eligibility.ELIGIBLE
+        eligibility_blockers = list(reasons)
+        if not unknown_gate_blocks_eligibility:
+            eligibility_blockers = [reason for reason in eligibility_blockers if reason != "decision_critical_unknown"]
+        eligibility = Eligibility.BLOCKED if eligibility_blockers else Eligibility.ELIGIBLE
 
-    readiness = Readiness.READY if eligibility == Eligibility.ELIGIBLE else Readiness.NOT_READY
+    readiness = (
+        Readiness.READY
+        if eligibility == Eligibility.ELIGIBLE and "decision_critical_unknown" not in reasons
+        else Readiness.NOT_READY
+    )
     candidate_id = f"{vehicle.vehicle_id}:{offer.offer_id}"
     return CandidateResult(
         candidate_id=candidate_id,
@@ -101,7 +119,11 @@ def close_call_threshold(coverage: float) -> float:
 
 def _reset_ranking_state(candidate: CandidateResult) -> CandidateResult:
     reasons = tuple(reason for reason in candidate.reasons if reason != "close_call")
-    readiness = Readiness.READY if candidate.eligibility == Eligibility.ELIGIBLE else Readiness.NOT_READY
+    readiness = (
+        Readiness.READY
+        if candidate.eligibility == Eligibility.ELIGIBLE and "decision_critical_unknown" not in reasons
+        else Readiness.NOT_READY
+    )
     return replace(candidate, close_call=False, readiness=readiness, reasons=reasons)
 
 
