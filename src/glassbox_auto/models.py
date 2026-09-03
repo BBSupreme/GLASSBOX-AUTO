@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
+import math
 from typing import Any
 
 
@@ -68,6 +69,10 @@ PREFERENCE_MULTIPLIERS = {
 }
 
 
+def _finite_number(value: Any) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(float(value))
+
+
 @dataclass(frozen=True)
 class Evidence:
     grade: EvidenceGrade = EvidenceGrade.UNKNOWN
@@ -119,7 +124,7 @@ class AcquisitionOffer:
         if not self.currency:
             raise ValueError("currency is required")
         _validate_observed_number(self.term_months, "term_months", strictly_positive=True)
-        _validate_observed_number(self.annual_km, "annual_km", non_negative=True)
+        _validate_observed_number(self.annual_km, "annual_km", strictly_positive=True)
         _validate_observed_number(self.upfront_payment, "upfront_payment", non_negative=True)
         _validate_observed_number(self.recurring_payment, "recurring_payment", non_negative=True)
         _validate_observed_number(self.mandatory_fees, "mandatory_fees", non_negative=True)
@@ -141,6 +146,8 @@ class UtilityAnchors:
     direction: UtilityDirection = UtilityDirection.HIGHER_IS_BETTER
 
     def __post_init__(self) -> None:
+        if not all(_finite_number(value) for value in (self.floor, self.need, self.stretch, self.need_utility)):
+            raise ValueError("utility anchors must be finite numeric values")
         if not (0.0 < self.need_utility < 1.0):
             raise ValueError("need_utility must be strictly between 0 and 1")
 
@@ -151,6 +158,11 @@ class GateDefinition:
     threshold: Any
     minimum_evidence: EvidenceGrade = EvidenceGrade.ESTIMATED
     decision_critical: bool = True
+
+    def __post_init__(self) -> None:
+        if isinstance(self.threshold, (int, float)) and not isinstance(self.threshold, bool):
+            if not math.isfinite(float(self.threshold)):
+                raise ValueError("numeric gate threshold must be finite")
 
 
 @dataclass(frozen=True)
@@ -169,10 +181,15 @@ class Criterion:
     unit: str | None = None
 
     def __post_init__(self) -> None:
+        if not _finite_number(self.base_weight) or not _finite_number(self.subweight):
+            raise ValueError("criterion weights must be finite numeric values")
         if self.base_weight < 0 or self.subweight < 0:
             raise ValueError("criterion weights must be non-negative")
-        if self.weight_cap is not None and self.weight_cap < 0:
-            raise ValueError("weight_cap must be non-negative")
+        if self.weight_cap is not None:
+            if not _finite_number(self.weight_cap):
+                raise ValueError("weight_cap must be finite")
+            if self.weight_cap < 0:
+                raise ValueError("weight_cap must be non-negative")
         if self.preference == PreferenceLabel.MUST_HAVE:
             if self.gate is None:
                 raise ValueError(f"Must-have criterion {self.criterion_id} requires a gate")
@@ -202,11 +219,15 @@ class UserProfile:
     require_unused_km_value: bool = True
 
     def __post_init__(self) -> None:
-        if self.expected_annual_km is not None and self.expected_annual_km < 0:
-            raise ValueError("expected_annual_km must be non-negative")
+        criterion_ids = [criterion.criterion_id for criterion in self.criteria]
+        if len(criterion_ids) != len(set(criterion_ids)):
+            raise ValueError("criterion_id values must be unique within a profile")
+        if self.expected_annual_km is not None:
+            if not _finite_number(self.expected_annual_km) or self.expected_annual_km < 0:
+                raise ValueError("expected_annual_km must be a finite non-negative number")
         for dimension, weight in self.dimension_weights.items():
-            if weight < 0:
-                raise ValueError(f"dimension weight must be non-negative: {dimension}")
+            if not _finite_number(weight) or weight < 0:
+                raise ValueError(f"dimension weight must be finite and non-negative: {dimension}")
         _validate_observed_number(self.unused_km_value_per_km, "unused_km_value_per_km", non_negative=True)
 
 
@@ -251,8 +272,8 @@ def _validate_observed_number(
 ) -> None:
     if observed is None or observed.value is None:
         return
-    if not isinstance(observed.value, (int, float)) or isinstance(observed.value, bool):
-        raise TypeError(f"{field_name} must be numeric")
+    if not _finite_number(observed.value):
+        raise TypeError(f"{field_name} must be a finite numeric value")
     value = float(observed.value)
     if strictly_positive and value <= 0:
         raise ValueError(f"{field_name} must be > 0")
