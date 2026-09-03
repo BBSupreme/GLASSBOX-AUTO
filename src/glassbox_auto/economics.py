@@ -27,7 +27,7 @@ def _value(observed: ObservedValue | None) -> float | None:
 def _minimum_grade(values: list[ObservedValue]) -> EvidenceGrade:
     if not values:
         return EvidenceGrade.UNKNOWN
-    return min((v.evidence.grade for v in values), key=lambda g: GRADE_RANK[g])
+    return min((value.evidence.grade for value in values), key=lambda grade: GRADE_RANK[grade])
 
 
 def _derived_value(
@@ -39,11 +39,13 @@ def _derived_value(
     max_grade: EvidenceGrade | None = None,
     extra_lineage: tuple[str, ...] = (),
 ) -> ObservedValue:
-    lineage = tuple(dict.fromkeys(
-        source
-        for source in (*[v.evidence.source for v in inputs if v.evidence.source], *extra_lineage)
-        if source
-    ))
+    lineage = tuple(
+        dict.fromkeys(
+            source
+            for source in (*[item.evidence.source for item in inputs if item.evidence.source], *extra_lineage)
+            if source
+        )
+    )
     if value is None:
         return ObservedValue(
             None,
@@ -100,7 +102,7 @@ def lease_economics(offer: AcquisitionOffer, profile: UserProfile) -> dict[str, 
     upfront = _value(offer.upfront_payment)
     recurring = _value(offer.recurring_payment)
     fees = _value(offer.mandatory_fees)
-    base_inputs = [v for v in required.values() if v is not None and v.value is not None]
+    base_inputs = [value for value in required.values() if value is not None and value.value is not None]
 
     base_cash_cost = None
     if term_months is not None and upfront is not None and recurring is not None and fees is not None:
@@ -126,10 +128,10 @@ def lease_economics(offer: AcquisitionOffer, profile: UserProfile) -> dict[str, 
         expected_total_km = profile.expected_annual_km * years
         contracted_total_km = annual_km * years
         delta = expected_total_km - contracted_total_km
-        scenario_adjusted = delta != 0
         mileage_inputs = [offer.annual_km, offer.term_months]
 
         if delta > 0:
+            scenario_adjusted = True
             if offer.overage_cost_per_km is None or offer.overage_cost_per_km.value is None:
                 overage_cost = None
                 mileage_adjustment = None
@@ -143,10 +145,19 @@ def lease_economics(offer: AcquisitionOffer, profile: UserProfile) -> dict[str, 
                 mileage_inputs.append(offer.overage_cost_per_km)
         elif delta < 0:
             if profile.unused_km_value_per_km is None or profile.unused_km_value_per_km.value is None:
-                unused_km_value_loss = None
-                mileage_adjustment = None
-                reasons.append("unused_km_value_per_km_missing")
+                if profile.require_unused_km_value:
+                    unused_km_value_loss = None
+                    mileage_adjustment = None
+                    reasons.append("unused_km_value_per_km_missing")
+                else:
+                    # Recovered Leasingmatrix v3 does not monetize unused
+                    # contracted kilometres in its Economics score. Ignoring
+                    # the under-use is therefore an explicit profile policy,
+                    # not a silent missing-value-to-zero coercion.
+                    unused_km_value_loss = 0.0
+                    mileage_adjustment = 0.0
             else:
+                scenario_adjusted = True
                 expected_unit = f"{offer.currency}/km"
                 if profile.unused_km_value_per_km.unit != expected_unit:
                     unused_km_value_loss = None
