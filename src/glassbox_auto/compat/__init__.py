@@ -16,6 +16,19 @@ from .v3 import (
     critical4_confidence,
     recovered_v3_readiness,
 )
+from .v3_economics import (
+    RecoveredV3HouseholdProfile,
+    RecoveredV3LeaseOffer,
+    calculated_contract_total,
+    comparison_total,
+    effective_monthly,
+    energy_monthly,
+    first_12_month_burden,
+    household_monthly,
+    insurance_monthly,
+    relative_economics_score,
+    stress_household_monthly,
+)
 
 __all__ = [
     "CoverageStrategy",
@@ -34,4 +47,15 @@ __all__ = [
     "close_call_coverage",
     "critical4_confidence",
     "recovered_v3_readiness",
+    "RecoveredV3HouseholdProfile",
+    "RecoveredV3LeaseOffer",
+    "calculated_contract_total",
+    "comparison_total",
+    "effective_monthly",
+    "energy_monthly",
+    "first_12_month_burden",
+    "household_monthly",
+    "insurance_monthly",
+    "relative_economics_score",
+    "stress_household_monthly",
 ]
