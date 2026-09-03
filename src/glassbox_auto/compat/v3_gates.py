@@ -122,19 +122,33 @@ def observed_recovered_v3_terms_gate(*, minimum_price_in_binding: float | None) 
 
 def canonical_terms_gate(
     *,
-    binding_period_known: bool,
+    binding_period_months: int | float | None,
+    max_binding_period_months: int | float | None,
     minimum_price_in_binding: float | None,
     termination_terms_known: bool,
     return_terms_known: bool,
 ) -> HistoricalCheck:
     """Revision A operationalization of acceptable lease terms.
 
-    This layer checks evidence completeness, not whether the user's maximum
-    binding-period preference is satisfied; that threshold comparison remains
-    a separate explicit criterion/gate input.
+    Required evidence is: a concrete binding period, the user's maximum
+    acceptable binding period, known minimum price in binding, and known
+    termination/return terms. Missing required evidence is UNKNOWN. A known
+    binding-period breach or non-positive minimum price is FAIL.
     """
-    if minimum_price_in_binding is None or minimum_price_in_binding <= 0:
+    if binding_period_months is None or max_binding_period_months is None:
         return HistoricalCheck.UNKNOWN
-    if not binding_period_known or not termination_terms_known or not return_terms_known:
+    if minimum_price_in_binding is None:
         return HistoricalCheck.UNKNOWN
+    if not termination_terms_known or not return_terms_known:
+        return HistoricalCheck.UNKNOWN
+    if isinstance(binding_period_months, bool) or isinstance(max_binding_period_months, bool):
+        return HistoricalCheck.UNKNOWN
+    if not isinstance(binding_period_months, (int, float)) or not isinstance(max_binding_period_months, (int, float)):
+        return HistoricalCheck.UNKNOWN
+    if not isinstance(minimum_price_in_binding, (int, float)) or isinstance(minimum_price_in_binding, bool):
+        return HistoricalCheck.UNKNOWN
+    if binding_period_months <= 0 or max_binding_period_months <= 0:
+        return HistoricalCheck.UNKNOWN
+    if binding_period_months > max_binding_period_months or minimum_price_in_binding <= 0:
+        return HistoricalCheck.FAIL
     return HistoricalCheck.PASS
