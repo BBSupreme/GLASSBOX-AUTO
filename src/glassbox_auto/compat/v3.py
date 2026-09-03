@@ -6,6 +6,7 @@ from enum import Enum
 class SourceTrack(str, Enum):
     REVISION_A = "REVISION_A"
     RECOVERED_V3_2 = "RECOVERED_V3_2"
+    RECONSTRUCTED_V3_2_1 = "RECONSTRUCTED_V3_2_1"
 
 
 class CoverageStrategy(str, Enum):
