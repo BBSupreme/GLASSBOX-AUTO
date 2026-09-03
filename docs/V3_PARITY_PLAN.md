@@ -41,16 +41,26 @@ Confirmed examples:
 
 `RECOVERED_V3_2` is an observation track, not authority to overwrite a conflicting Revision A rule.
 
-## 3. Conflict registry
+## 3. Conflict / difference registry
 
-| ID | Topic | REVISION_A | RECOVERED_V3_2 | Status |
+| ID | Topic | REVISION_A / intended contract | RECOVERED_V3_2 observation | Status |
 |---|---|---|---|---|
 | PC-01 | 95% close-call coverage | evidence-weight coverage | critical verified checks / 4 | **OPEN** — do not reconcile until later authoritative evidence |
 | PC-02 | Readiness | decision-critical UNKNOWN + close-call/freshness semantics | observed READY / NEARLY READY / NOT READY from critical-open count + expiry | **TRACK SEPARATELY** |
 | PC-03 | Confidence | non-critical gaps reduce Confidence | HIGH/MEDIUM/LOW derived from 4 critical checks | **TRACK SEPARATELY** |
-| PC-04 | Economics scope | method-level economics dimension | observed household monthly cost includes lease, energy, insurance, parking, tax/wear reserve, over-km | **ADAPTER REQUIRED** |
+| PC-04 | Economics scope | method-level economics dimension | observed household monthly cost includes lease, energy, insurance, parking, tax/wear reserve, over-km | **ADAPTER IMPLEMENTED / FIXTURES REQUIRED** |
 | PC-05 | Offer freshness | weekly shortlist checks; STALE caps Confidence/Readiness, EXPIRED #1 -> NOT READY | workbook has ACTIVE/STALE/EXPIRED behavior | **ADAPTER REQUIRED** |
 | PC-06 | Composite gates | gates must be operationally defined | NCAP, family test and lease terms are composite checks | **DERIVE ATTRIBUTES + LINEAGE** |
+| PC-07 | ACTIVE offer whose `Gyldig til` has passed | expired offer must not remain decision-eligible; implementation handover reports EXPIRED -> INELIGIBLE | `Offers_Data!Z` becomes `EXPIRED`, but `Scoring_Engine!X` checks only `STALE` when status is ACTIVE and therefore returns `PASS` | **RECOVERED WORKBOOK REGRESSION — reproduce as observation, correct in canonical adapter** |
+
+### PC-07 formula evidence
+
+Recovered formulas:
+
+- `Offers_Data!Z = IF(status is EXPIRED/HISTORICAL, status, IF(valid_until<TODAY(), EXPIRED, IF(days_since_control>14, STALE, FRESH)))`
+- `Scoring_Engine!X = IF(status=ACTIVE, IF(freshness=STALE, CHECK, PASS), IF(status=EXPIRING, CHECK, FAIL))`
+
+Therefore ACTIVE + elapsed `Gyldig til` -> freshness `EXPIRED` -> gate `PASS`. The parity layer must preserve this as an observed DIFFERENCE, not canonize it.
 
 ## 4. Parity levels
 
@@ -93,11 +103,13 @@ The adapter may:
 - derive auditable composite attributes with evidence lineage;
 - calculate historical Confidence/Readiness surfaces;
 - calculate historical household Economics from explicit inputs;
-- select an explicitly named coverage strategy.
+- select an explicitly named coverage strategy;
+- expose an observed-workbook behavior beside a canonical correction when a regression itself is part of the parity evidence.
 
 The adapter may not:
 - change generic Engine 0.1.0 defaults merely to imitate a workbook;
 - resolve PC-01 by choosing whichever rule makes scores match;
+- turn PC-07 into canonical behavior;
 - label inferred data VERIFIED;
 - enable purchase modes.
 
@@ -109,8 +121,9 @@ The adapter may not:
 4. historical Readiness logic is implemented only where operationally supported;
 5. a source-backed household Economics adapter is added with formula fixtures;
 6. composite gate derivations preserve lineage;
-7. parity report lists MATCH / DIFFERENCE / UNRESOLVED rather than hiding discrepancies;
-8. CI and adversarial review pass before any merge.
+7. offer freshness reproduces observed behavior and explicitly detects PC-07;
+8. parity report lists MATCH / DIFFERENCE / UNRESOLVED rather than hiding discrepancies;
+9. CI and adversarial review pass before any merge.
 
 ## 8. Explicit non-goals
 
