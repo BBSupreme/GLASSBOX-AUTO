@@ -150,6 +150,7 @@ class GateDefinition:
     operator: str
     threshold: Any
     minimum_evidence: EvidenceGrade = EvidenceGrade.ESTIMATED
+    decision_critical: bool = True
 
 
 @dataclass(frozen=True)
@@ -175,6 +176,8 @@ class Criterion:
         if self.preference == PreferenceLabel.MUST_HAVE:
             if self.gate is None:
                 raise ValueError(f"Must-have criterion {self.criterion_id} requires a gate")
+            if not self.gate.decision_critical:
+                raise ValueError(f"Must-have criterion {self.criterion_id} requires a decision-critical gate")
             if self.anchors is None:
                 raise ValueError(
                     f"Must-have criterion {self.criterion_id} requires utility anchors; "
