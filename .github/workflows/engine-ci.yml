@@ -2,21 +2,118 @@ name: engine-ci
 
 on:
   push:
-    branches: [main, "build/**"]
+    branches: [main, "build/**", "validation/**", "hardening/**", "fix/**"]
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: engine-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+
 jobs:
-  test:
+  core-contracts:
+    name: "contracts / core engine"
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
-      - name: Install
+      - name: Install package and test runner
+        run: python -m pip install -e . pytest
+      - name: Run core contract tests
+        run: >-
+          pytest -ra --tb=short
+          tests/test_engine.py
+          tests/test_decision_critical_gates.py
+          tests/test_must_have_weight.py
+          tests/test_adversarial_final.py
+          tests/test_adversarial_round2.py
+      - name: Explain failure class
+        if: failure()
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install -e . pytest
-      - name: Test
-        run: pytest
+          echo "## CI failure: core engine contracts" >> "$GITHUB_STEP_SUMMARY"
+          echo "A scoring, gate, evidence, economics or adversarial core invariant failed." >> "$GITHUB_STEP_SUMMARY"
+          echo "Open the **Run core contract tests** step; pytest uses short tracebacks and failed-test summaries." >> "$GITHUB_STEP_SUMMARY"
+
+  historical-compatibility:
+    name: "contracts / recovered v3 compatibility"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Install package and test runner
+        run: python -m pip install -e . pytest
+      - name: Run recovered-v3 and parity tests
+        run: >-
+          pytest -ra --tb=short
+          tests/test_recovered_v3_semantics.py
+          tests/test_v3_compat.py
+          tests/test_v3_economics_fixture.py
+          tests/test_v3_gate_parity.py
+          tests/test_v3_offer_parity.py
+          tests/test_v3_parity_report.py
+          tests/test_v3_2_1_workbook_fixture.py
+      - name: Explain failure class
+        if: failure()
+        run: |
+          echo "## CI failure: recovered v3 compatibility" >> "$GITHUB_STEP_SUMMARY"
+          echo "A historical source-track, parity, 3.2.1-R fixture, gate or recovered-economics invariant failed." >> "$GITHUB_STEP_SUMMARY"
+          echo "Do not weaken the test to restore green; classify the result as MATCH, DIFFERENCE or UNRESOLVED first." >> "$GITHUB_STEP_SUMMARY"
+
+  release-integrity:
+    name: "release / integrity and package smoke"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Install package and test runner
+        run: python -m pip install -e . pytest
+      - name: Compile package
+        run: python -m compileall -q src
+      - name: Check installed dependencies
+        run: python -m pip check
+      - name: Check release provenance and version
+        run: python -m glassbox_auto.release_integrity --expected-version 0.2.0
+      - name: Test release-integrity guard
+        run: pytest -ra --tb=short tests/test_release_integrity.py
+      - name: Explain failure class
+        if: failure()
+        run: |
+          echo "## CI failure: release integrity" >> "$GITHUB_STEP_SUMMARY"
+          echo "Package installability, compileability, versioning, or 3.2.1-R provenance guard failed." >> "$GITHUB_STEP_SUMMARY"
+          echo "This is a release blocker even if scoring tests are green." >> "$GITHUB_STEP_SUMMARY"
+
+  full-regression:
+    name: "regression / full suite"
+    runs-on: ubuntu-latest
+    needs: [core-contracts, historical-compatibility, release-integrity]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Install package and test runner
+        run: python -m pip install -e . pytest
+      - name: Run every test
+        run: pytest -ra --tb=short
+      - name: Publish green summary
+        if: success()
+        run: |
+          echo "## GLASSBOX-AUTO CI: GREEN" >> "$GITHUB_STEP_SUMMARY"
+          echo "Core contracts, recovered-v3 compatibility, release integrity and the complete regression suite passed." >> "$GITHUB_STEP_SUMMARY"
+      - name: Explain failure class
+        if: failure()
+        run: |
+          echo "## CI failure: full regression" >> "$GITHUB_STEP_SUMMARY"
+          echo "A test outside the classified suites failed or a cross-suite interaction regressed." >> "$GITHUB_STEP_SUMMARY"
