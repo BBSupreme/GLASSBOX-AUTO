@@ -1,0 +1,109 @@
+# Go-Live Hardening Review — 2026-09-04
+
+**Target:** Engine 0.2.0 leasing release line  
+**Branch:** `hardening/go-live-v0.2.0`  
+**Review type:** adversarial operational/release review
+
+## Verdict before fixes
+
+**HOLD for production declaration.**
+
+The engine itself was green, but the repository still had operational gaps that made a future failed Actions email hard to diagnose and made the public README understate/blur the actual release boundary.
+
+## Findings and disposition
+
+### GH-01 — one undifferentiated CI job
+
+**Severity:** P1 release-operations risk  
+**Finding:** `engine-ci` exposed a single generic `test` job. A failed notification did not tell the owner whether core semantics, historical parity, packaging/provenance or a cross-suite regression had failed.  
+**Fix:** split CI into named `core engine`, `recovered v3 compatibility`, `release integrity`, and `full regression` jobs; add short tracebacks and failure-class summaries.  
+**Status:** FIXED.
+
+### GH-02 — deprecated Actions runtime noise
+
+**Severity:** P2 observability/tooling  
+**Finding:** prior runs emitted Node-runtime deprecation warnings from old major versions of `actions/checkout` and `actions/setup-python`.  
+**Fix:** move to the current v7 releases and pin the exact action commit SHAs used by the successful hardening run.  
+**Status:** FIXED, subject to final-head CI.
+
+### GH-03 — no executable release-integrity gate
+
+**Severity:** P1 provenance/release risk  
+**Finding:** normal unit tests could remain green if package/reconstruction metadata drifted in a way that weakened the public claim boundary.  
+**Fix:** add a release-integrity command checking package version, manifest schema, pinned hashes, required PC-07/08/09 patches, explicit PC-01 conflict and prohibited historical-parity claims.  
+**Status:** FIXED, with regression tests.
+
+### GH-04 — public README still described bootstrap/migration state
+
+**Severity:** P1 product-state ambiguity  
+**Finding:** README still said the repository was in migration/bootstrap and conceptually listed purchase modes alongside leasing without clearly distinguishing production support.  
+**Fix:** publish the 0.2.x production boundary: private leasing live when main is green; BUY_NEW/BUY_USED remain fail-closed; link production-readiness/release docs and CI failure classes.  
+**Status:** FIXED.
+
+### GH-05 — no production-readiness contract
+
+**Severity:** P1 governance  
+**Finding:** "green tests" had no single documented release decision contract.  
+**Fix:** add `docs/PRODUCTION_READINESS.md` defining same-commit green gates, incident classification, claim boundaries and the no-test-weakening rule.  
+**Status:** FIXED.
+
+### GH-06 — generated 3.2.1-R XLSX not distributed byte-safely from GitHub
+
+**Severity:** P1 artifact-distribution limitation; not a core-engine blocker  
+**Finding:** expected output is pinned at SHA-256 `db5d2e8b6429df4229911f6459140ff8d36d8b258609be15a905d4487fc9b972`, but prior connector transport corrupted a binary upload.  
+**Disposition:** keep manifest/validator authoritative and prohibit hash drift. Publish the raw workbook only through a byte-safe Git/Git-LFS/release-asset route. Do not treat this limitation as historical v3.2.1 recovery.  
+**Status:** OPEN DISTRIBUTION TASK; tracked in #5 and disclosed.
+
+### GH-07 — no formal GitHub Release object
+
+**Severity:** P2 packaging/distribution  
+**Finding:** repository has release notes but no GitHub Release object/tag. The connected GitHub toolset in this session exposes release reads but not release/tag creation.  
+**Disposition:** release notes are committed; after the hardening merge, create a `v0.2.0` tag/release pointing to the exact green main commit using a client with release/tag write support.  
+**Status:** OPEN PLATFORM TASK; tracked in #5 and does not change code correctness.
+
+### GH-08 — mutable CI toolchain
+
+**Severity:** P1 reproducibility/supply-chain risk  
+**Finding:** the first hardening pass still used mutable action major tags and an unpinned pytest install, so the same source commit could behave differently after upstream updates. The first wheel build also selected the latest compatible setuptools from `setuptools>=68`.  
+**Fix:** pin `actions/checkout` and `actions/setup-python` to reviewed commit SHAs, pytest to `9.1.1`, release tooling to `build==1.6.0`, and the PEP 517 build backend to `setuptools==84.0.0`.  
+**Status:** FIXED, subject to final-head CI.
+
+### GH-09 — editable install was not a distribution smoke test
+
+**Severity:** P1 packaging risk  
+**Finding:** `pip install -e .` proved the repository was importable in editable mode but did not prove that the wheel/sdist a user would actually receive could be built and installed.  
+**Fix:** release-integrity CI now builds wheel + sdist, installs the wheel in a clean virtual environment and asserts installed metadata version `0.2.0` before the release can go green.  
+**Status:** FIXED, subject to final-head CI.
+
+### GH-10 — first wheel hardening run invoked provenance gate in the wrong Python environment
+
+**Severity:** P1 CI wiring defect  
+**Finding:** on final-head candidate run `33911559975`, core and recovered-v3 jobs passed, wheel/sdist built successfully, and the clean wheel installation passed. The release job then called `python -m glassbox_auto.release_integrity` from the host Python where the package was intentionally not installed, causing `ModuleNotFoundError`.  
+**Fix:** make the provenance checker repository-root aware via `--root`, then execute it through the **clean virtual environment containing the built wheel**. The gate now proves both that the published wheel contains the checker and that it validates the checked-out release metadata.  
+**Status:** FIXED, awaiting new final-head CI. The failed run is retained as an expected hardening incident, not reclassified as an engine failure.
+
+### GH-11 — packaging metadata deprecation surfaced by real wheel build
+
+**Severity:** P2 future-build risk  
+**Finding:** the wheel build exposed setuptools' deprecation of `project.license = {text = ...}`, with a stated future removal date.  
+**Fix:** use SPDX string `license = "Apache-2.0"` and the pinned modern setuptools backend.  
+**Status:** FIXED, subject to final-head CI.
+
+## Production claim after acceptance
+
+If this branch is green and merged, the allowed operational claim is:
+
+> GLASSBOX-AUTO Engine 0.2.0 is production-live for the documented private-leasing engine scope, with recovered-v3 compatibility and explicit provenance/known-limitations controls.
+
+This does not promote purchase economics, live scraping, byte-identical historical v3.2.1 parity or stale market evidence into production scope.
+
+## Merge acceptance
+
+Merge only if the branch head passes:
+
+1. `contracts / core engine`;
+2. `contracts / recovered v3 compatibility`;
+3. `release / integrity and wheel smoke`;
+4. `regression / full suite`.
+
+A failure is reviewed by class and fixed or documented before merge. Re-running alone is not a disposition.

@@ -4,6 +4,14 @@ All notable engine changes are documented here. Historical workbook version labe
 
 ## 0.2.0 — 2026-09-03
 
+### Go-live hardening — 2026-09-04
+- classified CI into core-engine, recovered-v3 compatibility, release-integrity and full-regression jobs so failure notifications identify the affected contract surface;
+- upgraded GitHub Actions checkout/setup runtimes to current v7 major releases;
+- added package compile, dependency-consistency and executable release-provenance gates;
+- added `docs/PRODUCTION_READINESS.md`, explicit incident handling and same-commit green merge requirements;
+- updated the README from migration/bootstrap language to the production-live private-leasing scope and fail-closed purchase boundary;
+- documented the remaining raw-XLSX distribution and formal GitHub tag/release tasks without weakening the `3.2.1-R` provenance claim.
+
 ### Added
 - explicit historical source tracks: `REVISION_A`, `RECOVERED_V3_2`, `RECONSTRUCTED_V3_2_1`;
 - recovered-v3 household Economics compatibility formulas and pinned candidate fixture values;
