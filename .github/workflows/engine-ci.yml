@@ -93,8 +93,10 @@ jobs:
           PY
       - name: Compile package source
         run: python -m compileall -q src
-      - name: Check release provenance and version
-        run: python -m glassbox_auto.release_integrity --expected-version 0.2.0
+      - name: Check release provenance and version through built wheel
+        run: >-
+          /tmp/glassbox-release-smoke/bin/python -m glassbox_auto.release_integrity
+          --expected-version 0.2.0 --root .
       - name: Test release-integrity guard
         run: pytest -ra --tb=short tests/test_release_integrity.py
       - name: Explain failure class
