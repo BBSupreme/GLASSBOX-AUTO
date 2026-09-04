@@ -30,7 +30,7 @@ The engine itself was green, but the repository still had operational gaps that 
 
 **Severity:** P1 provenance/release risk  
 **Finding:** normal unit tests could remain green if package/reconstruction metadata drifted in a way that weakened the public claim boundary.  
-**Fix:** add `python -m glassbox_auto.release_integrity --expected-version 0.2.0`, checking package version, manifest schema, pinned hashes, required PC-07/08/09 patches, explicit PC-01 conflict and prohibited historical-parity claims.  
+**Fix:** add a release-integrity command checking package version, manifest schema, pinned hashes, required PC-07/08/09 patches, explicit PC-01 conflict and prohibited historical-parity claims.  
 **Status:** FIXED, with regression tests.
 
 ### GH-04 — public README still described bootstrap/migration state
@@ -64,8 +64,8 @@ The engine itself was green, but the repository still had operational gaps that 
 ### GH-08 — mutable CI toolchain
 
 **Severity:** P1 reproducibility/supply-chain risk  
-**Finding:** the first hardening pass still used mutable action major tags and an unpinned pytest install, so the same source commit could behave differently after upstream updates.  
-**Fix:** pin `actions/checkout` and `actions/setup-python` to the exact reviewed commit SHAs and pin pytest to `9.1.1`. Release build tooling is pinned to `build==1.6.0`.  
+**Finding:** the first hardening pass still used mutable action major tags and an unpinned pytest install, so the same source commit could behave differently after upstream updates. The first wheel build also selected the latest compatible setuptools from `setuptools>=68`.  
+**Fix:** pin `actions/checkout` and `actions/setup-python` to reviewed commit SHAs, pytest to `9.1.1`, release tooling to `build==1.6.0`, and the PEP 517 build backend to `setuptools==84.0.0`.  
 **Status:** FIXED, subject to final-head CI.
 
 ### GH-09 — editable install was not a distribution smoke test
@@ -73,6 +73,20 @@ The engine itself was green, but the repository still had operational gaps that 
 **Severity:** P1 packaging risk  
 **Finding:** `pip install -e .` proved the repository was importable in editable mode but did not prove that the wheel/sdist a user would actually receive could be built and installed.  
 **Fix:** release-integrity CI now builds wheel + sdist, installs the wheel in a clean virtual environment and asserts installed metadata version `0.2.0` before the release can go green.  
+**Status:** FIXED, subject to final-head CI.
+
+### GH-10 — first wheel hardening run invoked provenance gate in the wrong Python environment
+
+**Severity:** P1 CI wiring defect  
+**Finding:** on final-head candidate run `33911559975`, core and recovered-v3 jobs passed, wheel/sdist built successfully, and the clean wheel installation passed. The release job then called `python -m glassbox_auto.release_integrity` from the host Python where the package was intentionally not installed, causing `ModuleNotFoundError`.  
+**Fix:** make the provenance checker repository-root aware via `--root`, then execute it through the **clean virtual environment containing the built wheel**. The gate now proves both that the published wheel contains the checker and that it validates the checked-out release metadata.  
+**Status:** FIXED, awaiting new final-head CI. The failed run is retained as an expected hardening incident, not reclassified as an engine failure.
+
+### GH-11 — packaging metadata deprecation surfaced by real wheel build
+
+**Severity:** P2 future-build risk  
+**Finding:** the wheel build exposed setuptools' deprecation of `project.license = {text = ...}`, with a stated future removal date.  
+**Fix:** use SPDX string `license = "Apache-2.0"` and the pinned modern setuptools backend.  
 **Status:** FIXED, subject to final-head CI.
 
 ## Production claim after acceptance
