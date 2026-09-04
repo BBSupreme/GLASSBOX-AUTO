@@ -23,8 +23,8 @@ The engine itself was green, but the repository still had operational gaps that 
 
 **Severity:** P2 observability/tooling  
 **Finding:** prior runs emitted Node-runtime deprecation warnings from old major versions of `actions/checkout` and `actions/setup-python`.  
-**Fix:** move to current v7 major releases.  
-**Status:** FIXED, subject to green CI on this branch.
+**Fix:** move to the current v7 releases and pin the exact action commit SHAs used by the successful hardening run.  
+**Status:** FIXED, subject to final-head CI.
 
 ### GH-03 — no executable release-integrity gate
 
@@ -52,14 +52,28 @@ The engine itself was green, but the repository still had operational gaps that 
 **Severity:** P1 artifact-distribution limitation; not a core-engine blocker  
 **Finding:** expected output is pinned at SHA-256 `db5d2e8b6429df4229911f6459140ff8d36d8b258609be15a905d4487fc9b972`, but prior connector transport corrupted a binary upload.  
 **Disposition:** keep manifest/validator authoritative and prohibit hash drift. Publish the raw workbook only through a byte-safe Git/Git-LFS/release-asset route. Do not treat this limitation as historical v3.2.1 recovery.  
-**Status:** OPEN DISTRIBUTION TASK; disclosed.
+**Status:** OPEN DISTRIBUTION TASK; tracked in #5 and disclosed.
 
 ### GH-07 — no formal GitHub Release object
 
 **Severity:** P2 packaging/distribution  
 **Finding:** repository has release notes but no GitHub Release object/tag. The connected GitHub toolset in this session exposes release reads but not release/tag creation.  
 **Disposition:** release notes are committed; after the hardening merge, create a `v0.2.0` tag/release pointing to the exact green main commit using a client with release/tag write support.  
-**Status:** OPEN PLATFORM TASK; does not change code correctness.
+**Status:** OPEN PLATFORM TASK; tracked in #5 and does not change code correctness.
+
+### GH-08 — mutable CI toolchain
+
+**Severity:** P1 reproducibility/supply-chain risk  
+**Finding:** the first hardening pass still used mutable action major tags and an unpinned pytest install, so the same source commit could behave differently after upstream updates.  
+**Fix:** pin `actions/checkout` and `actions/setup-python` to the exact reviewed commit SHAs and pin pytest to `9.1.1`. Release build tooling is pinned to `build==1.6.0`.  
+**Status:** FIXED, subject to final-head CI.
+
+### GH-09 — editable install was not a distribution smoke test
+
+**Severity:** P1 packaging risk  
+**Finding:** `pip install -e .` proved the repository was importable in editable mode but did not prove that the wheel/sdist a user would actually receive could be built and installed.  
+**Fix:** release-integrity CI now builds wheel + sdist, installs the wheel in a clean virtual environment and asserts installed metadata version `0.2.0` before the release can go green.  
+**Status:** FIXED, subject to final-head CI.
 
 ## Production claim after acceptance
 
@@ -75,7 +89,7 @@ Merge only if the branch head passes:
 
 1. `contracts / core engine`;
 2. `contracts / recovered v3 compatibility`;
-3. `release / integrity and package smoke`;
+3. `release / integrity and wheel smoke`;
 4. `regression / full suite`.
 
 A failure is reviewed by class and fixed or documented before merge. Re-running alone is not a disposition.
