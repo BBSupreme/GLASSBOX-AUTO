@@ -253,7 +253,7 @@ def test_criterion_unit_mismatch_blocks_candidate():
     assert result.criterion_results[0].reason == "unit_mismatch"
 
 
-def test_unknown_gate_candidate_cannot_outrank_pass_candidate():
+def test_unknown_gate_candidate_may_rank_first_but_cannot_be_ready():
     criterion = Criterion(
         "cargo",
         "cargo",
@@ -268,8 +268,11 @@ def test_unknown_gate_candidate_cannot_outrank_pass_candidate():
     unknown = evaluate_candidate(unknown_vehicle, lease_offer("o", "unknown"), profile)
     ranked = rank_candidates([unknown, passed])
     assert passed.eligibility == Eligibility.ELIGIBLE
-    assert unknown.eligibility == Eligibility.BLOCKED
-    assert ranked[0].candidate_id.startswith("pass:")
+    assert passed.readiness == Readiness.READY
+    assert unknown.eligibility == Eligibility.ELIGIBLE
+    assert unknown.readiness == Readiness.NOT_READY
+    assert "decision_critical_unknown" in unknown.reasons
+    assert ranked[0].candidate_id.startswith("unknown:")
 
 
 def test_purchase_blocked_candidate_cannot_rank_first():
