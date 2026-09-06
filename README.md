@@ -10,13 +10,15 @@ GLASSBOX-AUTO is the public home of the Leasingmatrix 2026 method and decision e
 
 **Engine release line: 0.2.x**
 
-The **private-leasing decision engine is production-live when `main` is green under the repository's go-live gates**. Engine 0.2.0 includes the audited core engine, recovered Leasingmatrix v3 compatibility controls and the documented `3.2.1-R` compliance reconstruction.
+The current production baseline is **Engine 0.2.0** on `main` at the reviewed go-live commit. The **0.2.1 candidate** corrects the canonical decision-critical gate default so it matches binding Revision A: gate `FAIL` is ineligible; decision-critical gate `UNKNOWN` may remain rank-eligible but is always `NOT_READY`. Callers that deliberately need a stricter fail-closed ranking policy can request it explicitly.
+
+A candidate is not production-live merely because its branch is green. It becomes live only after the reviewed implementation is on `main` and the repository's same-commit go-live gates pass.
 
 `BUY_NEW` and `BUY_USED` are architectural modes but are **not production-enabled economics modes**. They remain fail-closed until the original acquisition/purchase P1-P3 findings and purchase Economics anchors are recovered or replaced by an explicit source-backed method decision.
 
-See [`docs/PRODUCTION_READINESS.md`](docs/PRODUCTION_READINESS.md), [`docs/RELEASE_0.2.0.md`](docs/RELEASE_0.2.0.md) and [`docs/KNOWN_LIMITATIONS_v0.2.md`](docs/KNOWN_LIMITATIONS_v0.2.md).
+See [`docs/PRODUCTION_READINESS.md`](docs/PRODUCTION_READINESS.md), [`docs/RELEASE_0.2.0.md`](docs/RELEASE_0.2.0.md), [`docs/RELEASE_0.2.1.md`](docs/RELEASE_0.2.1.md) and [`docs/KNOWN_LIMITATIONS_v0.2.md`](docs/KNOWN_LIMITATIONS_v0.2.md).
 
-## What is live
+## What the 0.2.x engine provides
 
 - deterministic Python decision engine for private leasing;
 - user-specific criteria, editable weights and Must-have gates;
@@ -25,15 +27,15 @@ See [`docs/PRODUCTION_READINESS.md`](docs/PRODUCTION_READINESS.md), [`docs/RELEA
 - lease economics, mileage scenarios and stress testing;
 - recovered-v3 compatibility adapters for Confidence, Readiness, offer freshness and composite gates;
 - explicit Revision A vs recovered-v3 source-track differences rather than silent reconciliation;
-- `3.2.1-R` reconstruction manifest and executable workbook validator;
+- `3.2.1-R` reconstruction manifest and executable workbook validator as historical provenance/compatibility evidence;
 - adversarial regression suite and classified CI release gates.
 
-## What is not yet production scope
+## What is not production scope
 
 - new-car and used-car purchase economics;
 - automatic live-market scraping/freshness service;
 - a claim of byte-identical historical v3.2.1 recovery;
-- automatic publication of the generated 3.2.1-R XLSX through the current non-binary GitHub connector path.
+- public distribution of the `3.2.1-R` reconstructed XLSX. That binary import was retired on 2026-09-06; its pinned provenance record remains.
 
 ## Core principle: glass box, not black box
 
@@ -66,6 +68,7 @@ A conclusion that cannot survive adversarial inspection should not be promoted a
 │   ├── QA_AND_VALIDATION.md
 │   ├── PRODUCTION_READINESS.md
 │   ├── RELEASE_0.2.0.md
+│   ├── RELEASE_0.2.1.md
 │   ├── ACQUISITION_PURCHASE_LAYER.md
 │   └── MIGRATION_MANIFEST.md
 ├── fixtures/
@@ -81,6 +84,7 @@ The current method inherits the Leasingmatrix 2026 v3 line and binding Revision 
 
 - **Must-have** is both a very-high weight and a decision-critical gate.
 - Missing data is not silently scored as zero; scoring excludes unavailable values while coverage/readiness expose the gap.
+- Gate `FAIL` is ineligible; decision-critical `UNKNOWN` may remain ranked but cannot be READY.
 - Safety is a gate plus capped child-protection evidence inside Family, not an independent free-floating weight.
 - Diminishing utility uses fixed piecewise-linear **Floor / Need / Stretch** anchors.
 - Readiness is driven by decision-critical uncertainty and close-call state.
@@ -123,7 +127,9 @@ This repository is public by design. Contributions are welcome when they improve
 
 ## Artifact provenance
 
-`3.2.1-R` is explicitly a **reconstructed compliance artifact**, not the recovered historical v3.2.1 workbook. Its manifest pins source and output hashes and forbids silently upgrading the historical parity claim. See [`docs/V3_2_1_RECONSTRUCTION_2026-09-03.md`](docs/V3_2_1_RECONSTRUCTION_2026-09-03.md).
+`3.2.1-R` is explicitly a **reconstructed compliance artifact**, not the recovered historical v3.2.1 workbook. Its manifest pins source and output hashes and forbids silently upgrading the historical parity claim. Its public binary import is retired; the provenance record and validator remain. See [`docs/V3_2_1_RECONSTRUCTION_2026-09-03.md`](docs/V3_2_1_RECONSTRUCTION_2026-09-03.md).
+
+The separate private `3.2.1-RC1` workbook review track has its own lineage and release gates. It must not be treated as an Engine release artifact.
 
 ## Disclaimer
 
