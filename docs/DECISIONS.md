@@ -108,23 +108,3 @@ The following Draft A decisions survived the later adversarial review summary an
 4. Break-even residual value is mandatory in lease-vs-buy comparison.
 
 The acquisition/purchase layer is **not implementation-approved as a complete method**. Exact Draft A source, P1–P3 wording/findings and purchase Economics Floor/Need/Stretch anchors remain to be recovered.
-
-## Workbook distribution / provenance decisions
-
-### D2 — Retire the `3.2.1-R` binary import
-
-**Decision date:** 2026-09-06  
-**Status:** binding for the current RC1 review track.
-
-The planned public binary import/distribution of `Leasingmatrix_2026_v3.2.1_RECONSTRUCTED.xlsx` (`3.2.1-R`) is retired.
-
-The reconstruction remains historical provenance and compatibility evidence. Preserve its pinned manifest, reconstruction record and validator unless a separately reviewed cleanup explicitly supersedes them. Do not repin the historical reconstruction hash to RC1 and do not relabel `3.2.1-R` as the recovered historical original.
-
-The separately recovered workbook with internal `Change_Log!A16 = 3.2.1` is the source lineage for the private `3.2.1-RC1` review track. Publishing the older reconstruction binary as a current artifact would create a competing workbook line without improving Engine 0.2.0 correctness.
-
-Consequences:
-
-- no Git/Git-LFS/release-asset import of the `3.2.1-R` XLSX is required;
-- the blanket private-binary ignore policy for `*.xlsx`, `*.xls`, `*.pdf` and `*.zip` remains correct for the RC1/public-review track; no `3.2.1-R` allowlist exception is required;
-- Issue #5 remains only for the formal Engine `v0.2.0` tag/release work;
-- this decision does not approve `3.2.1-RC1`, change engine behavior, or change the package version.
