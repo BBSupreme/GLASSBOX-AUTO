@@ -1,0 +1,19 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.egg-info/
+build/
+dist/
+.venv/
+
+# Household-bearing review inputs and generated outputs remain private.
+*.xlsx
+*.xls
+*.pdf
+*.zip
+private_review/
+project_sources/
+recovered/
+checkpoints/
+qa_work/
+outputs/
