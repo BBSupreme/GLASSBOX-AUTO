@@ -10,9 +10,9 @@ GLASSBOX-AUTO is the public home of the Leasingmatrix 2026 method and decision e
 
 **Engine release line: 0.2.x**
 
-The current production baseline is **Engine 0.2.0** on `main` at the reviewed go-live commit. The **0.2.1 candidate** corrects the canonical decision-critical gate default so it matches binding Revision A: gate `FAIL` is ineligible; decision-critical gate `UNKNOWN` may remain rank-eligible but is always `NOT_READY`. Callers that deliberately need a stricter fail-closed ranking policy can request it explicitly.
+This tree represents **Engine 0.2.1**, which corrects the canonical decision-critical gate default so it matches binding Revision A: gate `FAIL` is ineligible; decision-critical gate `UNKNOWN` may remain rank-eligible but is always `NOT_READY`. Callers that deliberately need a stricter fail-closed ranking policy can request it explicitly.
 
-A candidate is not production-live merely because its branch is green. It becomes live only after the reviewed implementation is on `main` and the repository's same-commit go-live gates pass.
+Version metadata alone does not make a release production-live. A version is live only when its reviewed implementation is on `main` and the repository's go-live gates pass on that exact `main` commit. Until those conditions are met, the same tree is a release candidate.
 
 `BUY_NEW` and `BUY_USED` are architectural modes but are **not production-enabled economics modes**. They remain fail-closed until the original acquisition/purchase P1-P3 findings and purchase Economics anchors are recovered or replaced by an explicit source-backed method decision.
 
