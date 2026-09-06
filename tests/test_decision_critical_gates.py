@@ -42,6 +42,23 @@ def lease_offer(vehicle_id):
     )
 
 
+def decision_critical_fixture():
+    criteria = (
+        Criterion(
+            "critical_check",
+            "critical_check",
+            PreferenceLabel.MEDIUM,
+            anchors=None,
+            gate=GateDefinition(">=", 1, EvidenceGrade.VERIFIED, decision_critical=True),
+            base_weight=0,
+        ),
+        Criterion("quality", "quality", PreferenceLabel.MEDIUM, UtilityAnchors(0, 5, 10, 0.8)),
+    )
+    profile = UserProfile("p", criteria, expected_annual_km=15000)
+    vehicle = Vehicle("v", "M", "X", "A", {"critical_check": estimated(1), "quality": verified(8)})
+    return vehicle, profile
+
+
 def test_noncritical_unknown_does_not_block_eligibility_or_readiness():
     criteria = (
         Criterion(
@@ -72,22 +89,25 @@ def test_noncritical_unknown_does_not_block_eligibility_or_readiness():
     assert "decision_critical_unknown" not in result.reasons
 
 
-def test_decision_critical_unknown_still_blocks_under_generic_policy():
-    criteria = (
-        Criterion(
-            "critical_check",
-            "critical_check",
-            PreferenceLabel.MEDIUM,
-            anchors=None,
-            gate=GateDefinition(">=", 1, EvidenceGrade.VERIFIED, decision_critical=True),
-            base_weight=0,
-        ),
-        Criterion("quality", "quality", PreferenceLabel.MEDIUM, UtilityAnchors(0, 5, 10, 0.8)),
-    )
-    profile = UserProfile("p", criteria, expected_annual_km=15000)
-    vehicle = Vehicle("v", "M", "X", "A", {"critical_check": estimated(1), "quality": verified(8)})
+def test_decision_critical_unknown_is_rank_eligible_but_not_ready_by_default():
+    vehicle, profile = decision_critical_fixture()
 
     result = evaluate_candidate(vehicle, lease_offer("v"), profile)
+
+    assert result.eligibility == Eligibility.ELIGIBLE
+    assert result.readiness == Readiness.NOT_READY
+    assert "decision_critical_unknown" in result.reasons
+
+
+def test_decision_critical_unknown_can_be_fail_closed_explicitly():
+    vehicle, profile = decision_critical_fixture()
+
+    result = evaluate_candidate(
+        vehicle,
+        lease_offer("v"),
+        profile,
+        unknown_gate_blocks_eligibility=True,
+    )
 
     assert result.eligibility == Eligibility.BLOCKED
     assert result.readiness == Readiness.NOT_READY
