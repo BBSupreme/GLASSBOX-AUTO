@@ -1,8 +1,9 @@
 # Production Readiness — GLASSBOX-AUTO
 
 **Release line:** Engine 0.2.x  
-**Scope:** leasing decision engine and recovered-v3 compatibility  
-**Status:** GO when the release branch is green under the hardening CI below
+**Version represented by this tree:** 0.2.1  
+**Activation rule:** release candidate until the reviewed tree is on `main` and all go-live gates pass on that exact `main` commit  
+**Scope:** leasing decision engine and recovered-v3 compatibility
 
 ## 1. What "live" means
 
@@ -10,10 +11,12 @@ A release is live when all of the following are true:
 
 1. `main` contains the reviewed implementation;
 2. core, historical-compatibility, release-integrity and full-regression CI jobs are green on the same commit;
-3. package version and release notes agree;
+3. package metadata, runtime `__version__` and release notes agree;
 4. no P0/P1 release blocker is open for the leasing scope;
 5. historical/reconstructed artifacts preserve provenance and claim boundaries;
 6. known limitations are public and do not silently change recommendation semantics.
+
+A green feature or patch branch is a release candidate, not a live release. Once the same reviewed tree is on `main` and satisfies all gates above, this document describes the live 0.2.1 release without requiring a status-text rewrite.
 
 "Live" does **not** mean that every future acquisition mode is implemented. `BUY_NEW` and `BUY_USED` remain outside the leasing production boundary until their method is source-backed and separately released.
 
@@ -22,8 +25,9 @@ A release is live when all of the following are true:
 | Gate | Requirement | 0.2.x status |
 |---|---|---|
 | Core contracts | scoring, weights, gates, evidence, economics and ranking tests pass | REQUIRED |
+| Gate semantics | `FAIL` is ineligible; decision-critical `UNKNOWN` is rank-eligible but `NOT_READY` by default; strict fail-closed ranking is explicit opt-in | REQUIRED from 0.2.1 |
 | Historical compatibility | recovered-v3 / 3.2.1-R parity and difference tests pass | REQUIRED |
-| Release integrity | package compiles, dependencies are consistent, version/provenance guard passes | REQUIRED |
+| Release integrity | package compiles; wheel metadata and runtime version agree; provenance guard passes | REQUIRED |
 | Full regression | every repository test passes after the classified jobs | REQUIRED |
 | Purchase fail-closed | unsupported purchase modes cannot masquerade as production economics | REQUIRED |
 | Provenance | `3.2.1-R` cannot be relabelled as historical byte-identical v3.2.1 | REQUIRED |
@@ -50,35 +54,48 @@ When a job fails:
 
 A re-run without a diagnosis is not evidence of correctness.
 
-## 4. Release claim boundary
+## 4. Gate and recommendation claim boundary
 
-Allowed production claim:
+Binding Revision A D-V3.25 separates eligibility from readiness:
 
-> GLASSBOX-AUTO Engine 0.2.x is a tested, auditable leasing decision-engine substrate with explicit recovered-v3 compatibility controls and a documented 3.2.1-R compliance reconstruction.
+- gate `FAIL` → ineligible;
+- decision-critical gate `UNKNOWN` may remain in the ranking, but cannot be READY;
+- non-critical gaps affect Confidence/evidence rather than readiness;
+- a stricter fail-closed ranking policy is allowed only when explicitly requested by the caller and must not be described as the canonical Revision A default.
+
+This distinction is decision-relevant: `UNKNOWN` means "insufficient evidence to be ready," not "known failure."
+
+## 5. Release claim boundary
+
+Allowed production claim after a version is merged and green on its exact `main` commit:
+
+> GLASSBOX-AUTO Engine 0.2.x is a tested, auditable leasing decision-engine substrate with explicit recovered-v3 compatibility controls and preserved 3.2.1-R reconstruction provenance.
 
 Not allowed:
 
+- calling an unmerged candidate live;
 - historical v3.2.1 byte parity;
 - live-market freshness unless offer evidence was actually refreshed;
 - production purchase/new-buy/used-buy economics;
-- VERIFIED evidence derived from assumptions or inferred data.
+- VERIFIED evidence derived from assumptions or inferred data;
+- describing decision-critical `UNKNOWN` as a failed gate under the canonical Revision A policy.
 
-## 5. Workbook artifact status
+## 6. Workbook artifact status
 
-`3.2.1-R` is fingerprinted and its formula surface is executable/testable through the repository validator. The generated XLSX has SHA-256:
+`3.2.1-R` remains fingerprinted historical reconstruction evidence. Its manifest, reconstruction record and validator stay protected by release-integrity checks.
 
-`db5d2e8b6429df4229911f6459140ff8d36d8b258609be15a905d4487fc9b972`
+The planned public import/distribution of the reconstructed XLSX was **retired on 2026-09-06**. The retirement does not alter its pinned SHA-256 or provenance claim; it means the raw workbook is no longer a release/distribution task. Do not create a Git/LFS allowlist, release asset or replacement hash merely to publish it.
 
-The raw XLSX is not committed through the current connector because the prior UTF-8-oriented binary transport corrupted it. This is an **artifact-distribution limitation**, not an engine or parity-method limitation. A raw binary may only be published when a byte-safe Git/Git-LFS or release-asset path preserves the pinned hash.
+The separate private `3.2.1-RC1` workbook review track is not an Engine release artifact. Any future public demo workbook needs synthetic inputs, its own fingerprint and fresh QA.
 
-Until then, do not change the manifest hash to match a transported copy.
-
-## 6. Operational decision
+## 7. Operational decision
 
 The leasing engine can be released independently of:
 
 - recovery of the missing historical v3.2.1 binary/harness;
+- public distribution of the retired `3.2.1-R` binary;
 - purchase-layer P1-P3 and Economics anchors;
-- future live-market ingestion/frontends.
+- future live-market ingestion/frontends;
+- completion of the separate private RC1 workbook review.
 
-Those items remain roadmap/source-recovery work and must not be represented as completed production scope.
+Those items must not be represented as completed production scope unless their own gates are satisfied.

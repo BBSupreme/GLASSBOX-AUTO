@@ -46,13 +46,15 @@ There is no standalone Safety weight in v3.
 
 The recovered implemented profile uses Family subweights of 30% baggage, 25% by-fit, 30% child-seat/stroller and 15% child protection, with UNKNOWN child protection excluded and the Family denominator renormalized.
 
-### D-V3.25 — Readiness
+### D-V3.25 — Readiness and gate/ranking boundary
 Readiness is a function of decision-critical unknowns and close-call state only. Non-critical gaps affect Confidence rather than Readiness.
 
 Recovered implementation semantics clarify the gate/ranking boundary:
 
 - gate `FAIL` → INELIGIBLE;
 - gate `UNKNOWN` may remain ranked but prevents READY where decision-critical.
+
+For the canonical engine, this is the default boundary from 0.2.1 onward: a decision-critical `UNKNOWN` remains rank-eligible but is `NOT_READY`. A caller may explicitly request a stricter fail-closed ranking policy, but that override must not be described as the Revision A default.
 
 ### D-V3.26 — Gates require operational definitions
 Every gate must specify the underlying fields, evaluation rule, required evidence and missing-data behavior. An undefined gate is not created.
@@ -108,3 +110,23 @@ The following Draft A decisions survived the later adversarial review summary an
 4. Break-even residual value is mandatory in lease-vs-buy comparison.
 
 The acquisition/purchase layer is **not implementation-approved as a complete method**. Exact Draft A source, P1–P3 wording/findings and purchase Economics Floor/Need/Stretch anchors remain to be recovered.
+
+## Workbook distribution / provenance decisions
+
+### D2 — Retire the `3.2.1-R` binary import
+
+**Decision date:** 2026-09-06  
+**Status:** binding.
+
+The planned public binary import/distribution of `Leasingmatrix_2026_v3.2.1_RECONSTRUCTED.xlsx` (`3.2.1-R`) is retired.
+
+The reconstruction remains historical provenance and compatibility evidence. Preserve its pinned manifest, reconstruction record and validator unless a separately reviewed cleanup explicitly supersedes them. Do not repin the historical reconstruction hash to RC1 and do not relabel `3.2.1-R` as the recovered historical original.
+
+A separately recovered workbook with internal `Change_Log!A16 = 3.2.1` is the source lineage for the private `3.2.1-RC1` review track. Publishing the older reconstruction binary as a current artifact would create a competing workbook line without improving Engine correctness.
+
+Consequences:
+
+- no Git/Git-LFS/release-asset import of the `3.2.1-R` XLSX is required;
+- the reconstruction manifest, record and validator remain in-repository historical evidence;
+- the formal Engine release/tag is separate from workbook-binary distribution;
+- this decision does not approve `3.2.1-RC1`, change purchase scope or establish historical byte identity.
