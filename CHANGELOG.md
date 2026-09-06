@@ -2,6 +2,27 @@
 
 All notable engine changes are documented here. Historical workbook version labels are tracked separately from package Semantic Versioning.
 
+## 0.2.1 — 2026-09-06
+
+### Corrected
+- aligned the canonical decision-critical `UNKNOWN` gate default with binding Revision A D-V3.25: `UNKNOWN` may remain rank-eligible but is always `NOT_READY`; gate `FAIL` remains ineligible;
+- retained an explicit `unknown_gate_blocks_eligibility=True` override for callers that intentionally require stricter fail-closed ranking, without presenting that override as the Revision A default;
+- added regression coverage for the canonical default, explicit strict override and non-critical UNKNOWN behavior;
+- aligned `glassbox_auto.__version__`, project metadata, wheel smoke checks and release-integrity expectations on 0.2.1;
+- strengthened release integrity so runtime and package versions cannot silently diverge;
+- tightened README and production-readiness language so an unmerged green branch is a candidate, not a live release.
+
+### Provenance / distribution decision
+- recorded D2: retire public import/distribution of the `3.2.1-R` reconstructed XLSX while preserving its manifest, reconstruction record and validator as historical provenance/compatibility evidence;
+- the retired binary is no longer a Git/LFS or release-asset task and its pinned hash must not be repurposed for RC1;
+- the separate private `3.2.1-RC1` workbook review track remains outside the Engine release artifact boundary.
+
+### Scope unchanged
+- lease-new economics remain the production-supported acquisition mode;
+- `BUY_NEW` / `BUY_USED` remain fail-closed pending the separate purchase-method gates;
+- PC-01 close-call coverage authority remains explicit and unresolved;
+- no historical byte-identical v3.2.1 claim is introduced.
+
 ## 0.2.0 — 2026-09-03
 
 ### Go-live hardening — 2026-09-04
@@ -36,7 +57,7 @@ All notable engine changes are documented here. Historical workbook version labe
 - the generated `3.2.1-R` is not claimed to be the missing historical v3.2.1 workbook and does not establish bit-for-bit parity;
 - the exact historical v3.2.1 bundled QA harness/output remains unrecovered;
 - purchase/new-buy/used-buy economics remain method-blocked pending original P1-P3 findings and purchase anchors;
-- byte-safe Git import of the generated XLSX remains a transport task; a corrupt connector upload was removed rather than accepted.
+- byte-safe Git import of the generated XLSX remained a transport task at the time of 0.2.0; D2 in 0.2.1 later retired that distribution path.
 
 ## 0.1.0 — 2026-09-03
 
