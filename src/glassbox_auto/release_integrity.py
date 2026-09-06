@@ -9,6 +9,7 @@ import tomllib
 from pathlib import Path
 
 HEX64 = re.compile(r"^[0-9a-f]{64}$")
+INIT_VERSION = re.compile(r'^__version__\s*=\s*["\']([^"\']+)["\']', re.MULTILINE)
 
 
 class ReleaseIntegrityError(RuntimeError):
@@ -51,6 +52,14 @@ def _load_manifest(root: Path) -> dict:
         return json.load(fh)
 
 
+def _load_runtime_version(root: Path) -> str | None:
+    path = root / "src" / "glassbox_auto" / "__init__.py"
+    if not path.is_file():
+        return None
+    match = INIT_VERSION.search(path.read_text(encoding="utf-8"))
+    return match.group(1) if match else None
+
+
 def check_release_integrity(
     expected_version: str | None = None,
     root: str | Path | None = None,
@@ -67,6 +76,12 @@ def check_release_integrity(
         errors.append("pyproject.toml has no project.version")
     if expected_version and version != expected_version:
         errors.append(f"package version {version!r} != expected {expected_version!r}")
+
+    runtime_version = _load_runtime_version(repo_root)
+    if runtime_version is None:
+        errors.append("glassbox_auto.__version__ could not be read from src/glassbox_auto/__init__.py")
+    elif version and runtime_version != version:
+        errors.append(f"runtime version {runtime_version!r} != package version {version!r}")
 
     manifest = _load_manifest(repo_root)
     required = {
@@ -143,7 +158,7 @@ def main(argv: list[str] | None = None) -> int:
     repo_root = _resolve_root(args.root)
     version = _load_pyproject(repo_root)["project"]["version"]
     print("RELEASE INTEGRITY: PASS")
-    print(f"- package version: {version}")
+    print(f"- package/runtime version: {version}")
     print("- 3.2.1-R provenance guard: intact")
     print("- PC-01 unresolved status: explicit")
     return 0
