@@ -8,6 +8,8 @@
 
 ## 1. Search result
 
+**Later evidence, 2026-09-06:** the search result below records what was available on 2026-09-03. A different source, `Leasingmatrix 2026 v3.xlsx`, has since been recovered with `Change_Log!A16 = 3.2.1`. It is the base of the new [3.2.1-RC1 review track](WORKBOOK_v3_2_1_RC1.md), not evidence that this earlier reconstruction was the historical original. The original bundled v3.2.1 harness remains unidentified. This record and its pinned hashes are retained unchanged as historical evidence.
+
 The project/File Library, local migration bundle and public GLASSBOX-AUTO repository were searched for an artifact that identifies itself as the historical `v3.2.1` workbook/build or its exact bundled QA output.
 
 No such byte-identical artifact was found.

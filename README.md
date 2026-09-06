@@ -16,6 +16,8 @@ The **private-leasing decision engine is production-live when `main` is green un
 
 See [`docs/PRODUCTION_READINESS.md`](docs/PRODUCTION_READINESS.md), [`docs/RELEASE_0.2.0.md`](docs/RELEASE_0.2.0.md) and [`docs/KNOWN_LIMITATIONS_v0.2.md`](docs/KNOWN_LIMITATIONS_v0.2.md).
 
+**Workbook review track — 2026-09-06:** `3.2.1-RC1` is built and awaiting independent review; it is not an engine release or a replacement for the pinned `3.2.1-R` reconstruction. A newly recovered, differently named source has an internal `3.2.1` marker. See the [RC1 provenance and validation record](docs/WORKBOOK_v3_2_1_RC1.md) and [Claude handover](docs/CLAUDE_HANDOFF_WORKBOOK_v3_2_1_RC1.md). The workbook and source package contain a household profile and remain private; the public repository records hashes, review instructions and a read-only integrity checker.
+
 ## What is live
 
 - deterministic Python decision engine for private leasing;

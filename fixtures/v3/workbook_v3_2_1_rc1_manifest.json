@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "artifact": "Leasingmatrix_2026_v3.2.1_RC1.xlsx",
+  "sha256": "66fb614d5b0b97f7fa9319d8ae92621528ce2a7dd0b2bd165d4d16a8ffdabf76",
+  "status": "REVIEW REQUIRED",
+  "distribution": "PRIVATE_REVIEW_PACKAGE",
+  "base_repository_commit": "fcf66232fae0f8a36995217f087a489a837d27c2",
+  "engine_version_unchanged": "0.2.0",
+  "source": {
+    "filename": "Leasingmatrix 2026 v3.xlsx",
+    "sha256": "003e13ea7f4e4f526e5eeecacee2524368a3187001a9fce686aec4c1692d4832",
+    "observed_version_cell": "Change_Log!A16",
+    "observed_version": "3.2.1",
+    "historical_acceptance_proven": false
+  },
+  "pre_display_fix_checkpoint_sha256": "b9581f5d73667bbbffdf2cc09e762b3575d6b041aee1d903d4815e17404c8a91",
+  "private_review_package": {
+    "filename": "Leasingmatrix_v3.2.1_Claude_Review_Package.zip",
+    "sha256": "2b3446d3a440e81bd212b597f469a170d722e685684f71715b7e20f6f6c75fcf"
+  },
+  "expected": {
+    "sheets": 37,
+    "manufacturer_tabs": 24,
+    "catalogue_rows": 142,
+    "scored_offers": 14,
+    "formulas": 3329,
+    "cached_error_cells": 0
+  },
+  "build_qa": {
+    "executed_on": "2026-09-05",
+    "checks_passed": 75,
+    "checks_total": 75,
+    "mutation_scenarios": 17,
+    "private_report_sha256": "1c133833dd4d27d78070cd8fd11c6cc40e4474d0335482f2f235bf9e4842ee26",
+    "calculation_runtime": "LibreOffice",
+    "independent_python_score_and_cost_rows": 14,
+    "excel": "NOT RUN",
+    "repository_pytest_local": "NOT RUN - pytest unavailable",
+    "claude": "NOT RUN - runtime unavailable",
+    "fable_5_1": "NOT RUN - runtime unavailable"
+  },
+  "claims_excluded": [
+    "Historical byte-identical recovery or acceptance",
+    "Complete source-only rebuild without the pinned checkpoint",
+    "Current market prices or catalogue completeness",
+    "Approved evidence-weight coverage methodology",
+    "Purchase economics readiness",
+    "Release approval"
+  ]
+}

@@ -2,6 +2,15 @@
 
 All notable engine changes are documented here. Historical workbook version labels are tracked separately from package Semantic Versioning.
 
+## Workbook 3.2.1-RC1 review track — 2026-09-06
+
+- recorded the newly recovered internally labeled 3.2.1 source separately from the earlier 3.2.1-R reconstruction; preserved all historical fingerprints and engine behavior;
+- added the RC1 artifact manifest, privacy-safe QA summary, read-only integrity checker and synthetic checker tests;
+- documented 75/75 checks across 17 workbook mutation scenarios from the private build evidence, without relabeling them as repository CI or independent external review;
+- prepared a Claude orchestration handover for the requested Fable 5.1 adversarial review, including explicit model-availability and release gates;
+- kept household-bearing workbook/source binaries and detailed QA outputs out of this public repository;
+- no engine version bump, purchase-method expansion, merge or release approval.
+
 ## 0.2.0 — 2026-09-03
 
 ### Go-live hardening — 2026-09-04
