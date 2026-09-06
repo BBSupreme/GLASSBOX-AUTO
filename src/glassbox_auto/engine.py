@@ -39,18 +39,19 @@ def evaluate_candidate(
     offer: AcquisitionOffer,
     profile: UserProfile,
     *,
-    unknown_gate_blocks_eligibility: bool = True,
+    unknown_gate_blocks_eligibility: bool = False,
 ) -> CandidateResult:
     """Evaluate one candidate.
 
     ``unknown_gate_blocks_eligibility`` controls only *decision-critical* gate
     unknowns. Non-critical UNKNOWN gates reduce evidence coverage but do not
-    affect eligibility or readiness, matching Revision A D-V3.25.
+    affect eligibility or readiness.
 
-    The generic Engine v0.1 default is fail-closed for decision-critical
-    UNKNOWN gates. The recovered Leasingmatrix v3 implementation uses
-    ``False``: decision-critical UNKNOWN remains rank-eligible but is NOT_READY.
-    Gate FAIL remains ineligible in both policies.
+    Engine 0.2.1 defaults to the binding Revision A D-V3.25 boundary:
+    decision-critical UNKNOWN may remain rank-eligible but is always NOT_READY.
+    Callers that require a stricter fail-closed ranking policy can explicitly
+    pass ``unknown_gate_blocks_eligibility=True``. Gate FAIL remains ineligible
+    under both policies.
     """
     if offer.vehicle_id != vehicle.vehicle_id:
         raise ValueError("Offer vehicle_id does not match vehicle")
