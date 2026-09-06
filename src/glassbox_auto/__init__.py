@@ -1,4 +1,4 @@
-__version__ = "0.1.0"
+__version__ = "0.2.1"
 
 from .economics import PurchaseMethodBlockedError, lease_economics
 from .engine import evaluate_candidate, rank_candidates
