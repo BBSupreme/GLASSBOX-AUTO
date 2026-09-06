@@ -1,8 +1,8 @@
 # Production Readiness — GLASSBOX-AUTO
 
 **Release line:** Engine 0.2.x  
-**Current production baseline:** 0.2.0 on `main`  
-**Candidate:** 0.2.1 gate/claim alignment  
+**Version represented by this tree:** 0.2.1  
+**Activation rule:** release candidate until the reviewed tree is on `main` and all go-live gates pass on that exact `main` commit  
 **Scope:** leasing decision engine and recovered-v3 compatibility
 
 ## 1. What "live" means
@@ -16,7 +16,7 @@ A release is live when all of the following are true:
 5. historical/reconstructed artifacts preserve provenance and claim boundaries;
 6. known limitations are public and do not silently change recommendation semantics.
 
-A green feature or patch branch is a release candidate, not a live release.
+A green feature or patch branch is a release candidate, not a live release. Once the same reviewed tree is on `main` and satisfies all gates above, this document describes the live 0.2.1 release without requiring a status-text rewrite.
 
 "Live" does **not** mean that every future acquisition mode is implemented. `BUY_NEW` and `BUY_USED` remain outside the leasing production boundary until their method is source-backed and separately released.
 
