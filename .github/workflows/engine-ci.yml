@@ -90,8 +90,8 @@ jobs:
           /tmp/glassbox-release-smoke/bin/python - <<'PY'
           from importlib.metadata import version
           import glassbox_auto
-          assert version("glassbox-auto") == "0.2.1"
-          assert glassbox_auto.__version__ == "0.2.1"
+          assert version("glassbox-auto") == "0.2.2"
+          assert glassbox_auto.__version__ == "0.2.2"
           print("wheel import/version smoke: PASS")
           PY
       - name: Compile package source
@@ -99,7 +99,7 @@ jobs:
       - name: Check release provenance and version through built wheel
         run: >-
           /tmp/glassbox-release-smoke/bin/python -m glassbox_auto.release_integrity
-          --expected-version 0.2.1 --root .
+          --expected-version 0.2.2 --root .
       - name: Test release-integrity guard
         run: pytest -ra --tb=short tests/test_release_integrity.py
       - name: Explain failure class

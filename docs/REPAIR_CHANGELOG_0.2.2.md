@@ -1,13 +1,12 @@
-# Readiness integrity repair ledger — planned 0.2.2
+# Readiness integrity repair ledger — 0.2.2 candidate
 
-Date: 2026-09-07. Status: UNRELEASED / independent review required.
+Date: 2026-09-07. Status: UNRELEASED / separate review and activation gates required.
 Base: `55e82c378f94e0ea1b6481b405c6cb7053f6b9f8` (Engine 0.2.1).
 
-This is a narrow source repair, not a released 0.2.2 package. Package/runtime
-version remains 0.2.1 while under review; exact commit identifies the candidate.
-Do not distribute the candidate under that version. Before merge/release, bump
-metadata/runtime/smoke tests to 0.2.2, align README/production/release notes and
-CHANGELOG.md, then rerun all gates on that new head. No main change is implied.
+This is a narrow repair, not the public-agent interface. The initial source-only
+review commits kept 0.2.1 metadata; the release-preparation step below aligns the
+candidate package/runtime/smoke expectations on 0.2.2. Neither identity nor an
+older green run permits distribution before the current review and CI gates.
 
 ## Change record
 
@@ -38,7 +37,7 @@ or zero substitution. This patch is not a general arbitrary-precision engine.
 The first 101-test patch passed repository CI (190 tests on the Python 3.11 leg;
 all four runtime legs green), but a deterministic normal-weight stress probe
 then exposed a new guard rejection. Python 3.13's compensated built-in sum for
-the denominator could disagree with sequential += coverage numerators by one
+ the denominator could disagree with sequential += coverage numerators by one
 round-off step. The guard correctly refused coverage above one, but these were
 valid ordinary weights and should not be rejected.
 
@@ -58,18 +57,39 @@ must not reconstruct identities by unescaped concatenation. Empty/control or
 invalid UTF-8 identifiers fail explicitly. Previously persisted IDs containing
 reserved characters must be rebuilt from the two raw component fields.
 
-## Execution evidence at preparation
+## Initial source execution evidence
 
 - Five baseline core modules matched their recorded Git blob SHAs before tests.
 - The unchanged 27-test review suite reproduced 6 failures / 21 passes.
-- After correction the same 27 assertions pass, with no xfail or skipped test.
-- 135 additional parameterized boundary/integrity controls pass: 162 total local
-  tests, Python 3.13.5 / pytest 9.0.2. Source compilation passes.
-- Local runtime is a byte-verified core snapshot, not a complete clone. Original
-  full suite, compatibility and wheel packaging are delegated to exact-head CI.
-- CI retains the four categories and runs the complete suite on Python
-  3.11/3.12/3.13/3.14. Record actual completed results on the PR; configuration
-  alone is not execution evidence. All four matrix legs are required.
+- After correction the same 27 assertions passed, with no xfail or skipped test.
+- 135 additional parameterized boundary/integrity controls passed: 162 total local
+  tests, Python 3.13.5 / pytest 9.0.2. Source compilation passed.
+- Local runtime was a byte-verified core snapshot, not a complete clone. Original
+  full suite, compatibility and wheel packaging were verified separately by CI.
+- CI `34154202209` completed successfully for repair head `f5af174` across core,
+  historical compatibility, release/wheel and all four regression runtimes.
+  PR synthetic merge `86e8d8d5f2497e0c00df0711b44c3d33453689c8` had the same tree
+  `87ff9f6864679dab5467b6290f778a69bb64f197`; it was not a main release.
+
+## Review execution and release-identity preparation
+
+A separate Codex code-review request was posted on PR #14 as comment
+`5574922480`, targeting `f5af174`. The actual bot acknowledged RUNNING in comment
+`5574925082` on 2026-09-07. Only its eventual result, not the request or this
+acknowledgment, establishes a completed review. Outcomes belong to the exact
+reviewed source; a later head needs final-head confirmation.
+
+The coordinating assistant also recovered six core modules, verified their Git
+blob identities against `f5af174`, and reran the original 27 falsifiers: 27 PASS
+on Python 3.13.5. This is additional execution, NOT independent reviewer approval
+and NOT a local run of the full repository suite.
+
+Release preparation aligns pyproject, runtime version, release-integrity tests,
+wheel smoke, README, production notes and global CHANGELOG on 0.2.2, and adds
+`RELEASE_0.2.2.md`. No decision-math module changes in that preparation step.
+Fresh CI and final reviewer evidence on the new head remain required. Read the
+PR's actual run/review records; this chronological ledger is not a live status
+service. No merge or tag/release is authorized by a status label in this file.
 
 ## Review and scope
 
@@ -87,3 +107,4 @@ Research references:
 - https://docs.python.org/3/library/math.html#math.isclose
 - https://docs.python.org/3/library/math.html#math.isfinite
 - https://docs.python.org/3/library/urllib.parse.html#urllib.parse.quote
+- https://openai.com/index/introducing-upgrades-to-codex/
