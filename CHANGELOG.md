@@ -2,6 +2,28 @@
 
 All notable engine changes are documented here. Historical workbook version labels are tracked separately from package Semantic Versioning.
 
+## 0.2.2 — candidate prepared 2026-09-07
+
+Activation requires a separate review, full same-commit CI and the reviewed merge on `main`. This entry and package metadata do not claim a published release.
+
+### Corrected
+- inclusive 0.15/0.20 close-call score gaps tolerate binary round-off within an explicit absolute 1e-12 score-point allowance; scores are not rounded for ranking and the 0.95 coverage switch is unchanged (#11);
+- percent-encode vehicle/offer ID components and reject duplicate serialized identities and raw component pairs, preventing exact-tie warning suppression (#12);
+- reject non-finite weights, sums, utility spans, economic calculations and result values rather than returning READY with NaN/Infinity (#13);
+- use consistent finite summation and divide before score scaling to preserve ordinary decimal-weight inputs.
+
+### Validation and migration
+- retain the original 27 adversarial falsifiers and additional numerical/identity controls;
+- full regression runs separately on Python 3.11, 3.12, 3.13 and 3.14;
+- package metadata, runtime version, wheel checks and release-integrity expectations align on 0.2.2;
+- legacy IDs with reserved characters must be regenerated from raw vehicle_id/offer_id; ordinary unreserved IDs are unchanged;
+- preserve the source-repair history and reviewer evidence in `docs/REPAIR_CHANGELOG_0.2.2.md` and PR #14.
+
+### Scope unchanged
+- canonical and strict-opt-in UNKNOWN behavior, blocked purchase modes, PC-01 authority and historical workbook fingerprints are unchanged;
+- bounded owner acceptance of ordinary attribution/history is documented in `docs/PRIVACY_SCOPE_2026-09-07.md`; sensitive data remains protected;
+- this is not the public-agent CLI/interface, a market catalog or a multi-provider certification.
+
 ## 0.2.1 — 2026-09-06
 
 ### Corrected

@@ -1,7 +1,7 @@
 # Production Readiness — GLASSBOX-AUTO
 
 **Release line:** Engine 0.2.x  
-**Version represented by this tree:** 0.2.1  
+**Version represented by this tree:** 0.2.2  
 **Activation rule:** release candidate until the reviewed tree is on `main` and all go-live gates pass on that exact `main` commit  
 **Scope:** leasing decision engine and recovered-v3 compatibility
 
@@ -10,13 +10,14 @@
 A release is live when all of the following are true:
 
 1. `main` contains the reviewed implementation;
-2. core, historical-compatibility, release-integrity and full-regression CI jobs are green on the same commit;
+2. core, historical-compatibility, release-integrity and all full-regression runtime jobs are green on the same commit;
 3. package metadata, runtime `__version__` and release notes agree;
 4. no P0/P1 release blocker is open for the leasing scope;
 5. historical/reconstructed artifacts preserve provenance and claim boundaries;
-6. known limitations are public and do not silently change recommendation semantics.
+6. known limitations are public and do not silently change recommendation semantics;
+7. the repair has a separately executed review, with any findings resolved or explicitly classified, bound to the reviewed source. Builder self-review and green CI alone are not independent approval.
 
-A green feature or patch branch is a release candidate, not a live release. Once the same reviewed tree is on `main` and satisfies all gates above, this document describes the live 0.2.1 release without requiring a status-text rewrite.
+A green feature or patch branch is a release candidate, not a live release. Once the same reviewed tree is on `main` and satisfies all gates above, this document describes the live 0.2.2 release without requiring a status-text rewrite. New counterevidence reopens the affected gate even if an older run was green.
 
 "Live" does **not** mean that every future acquisition mode is implemented. `BUY_NEW` and `BUY_USED` remain outside the leasing production boundary until their method is source-backed and separately released.
 
@@ -26,9 +27,10 @@ A green feature or patch branch is a release candidate, not a live release. Once
 |---|---|---|
 | Core contracts | scoring, weights, gates, evidence, economics and ranking tests pass | REQUIRED |
 | Gate semantics | `FAIL` is ineligible; decision-critical `UNKNOWN` is rank-eligible but `NOT_READY` by default; strict fail-closed ranking is explicit opt-in | REQUIRED from 0.2.1 |
+| Readiness integrity | inclusive bands, unambiguous identity/duplicate rejection and finite valid calculation results | REQUIRED from 0.2.2 |
 | Historical compatibility | recovered-v3 / 3.2.1-R parity and difference tests pass | REQUIRED |
 | Release integrity | package compiles; wheel metadata and runtime version agree; provenance guard passes | REQUIRED |
-| Full regression | every repository test passes after the classified jobs | REQUIRED |
+| Full regression | every repository test passes on Python 3.11/3.12/3.13/3.14 after the classified jobs | REQUIRED |
 | Purchase fail-closed | unsupported purchase modes cannot masquerade as production economics | REQUIRED |
 | Provenance | `3.2.1-R` cannot be relabelled as historical byte-identical v3.2.1 | REQUIRED |
 | PC-01 disclosure | close-call coverage authority conflict remains explicit until source evidence resolves it | REQUIRED |
@@ -37,12 +39,12 @@ Any failure in these gates is a release blocker. Do not weaken a test merely to 
 
 ## 3. CI incident classification
 
-GitHub Actions uses four named jobs so notification emails identify the failure domain:
+GitHub Actions uses four named categories so notification emails identify the failure domain:
 
 - `contracts / core engine` — canonical engine semantics;
 - `contracts / recovered v3 compatibility` — historical source-track and parity surface;
-- `release / integrity and package smoke` — packaging, version and provenance;
-- `regression / full suite` — cross-suite or newly added tests not covered by the first three groups.
+- `release / integrity and wheel smoke` — packaging, version and provenance;
+- `regression / full suite (Python ...)` — complete tests on each declared regression runtime.
 
 When a job fails:
 
@@ -52,7 +54,7 @@ When a job fails:
 4. add/retain a regression test;
 5. require a green run on the new head before merge.
 
-A re-run without a diagnosis is not evidence of correctness.
+A re-run without a diagnosis is not evidence of correctness. PR workflows may test a synthetic merge commit; record that SHA/tree rather than calling it a production merge. Verify fresh main-push CI after the actual merge.
 
 ## 4. Gate and recommendation claim boundary
 
@@ -64,6 +66,8 @@ Binding Revision A D-V3.25 separates eligibility from readiness:
 - a stricter fail-closed ranking policy is allowed only when explicitly requested by the caller and must not be described as the canonical Revision A default.
 
 This distinction is decision-relevant: `UNKNOWN` means "insufficient evidence to be ready," not "known failure."
+
+The 0.2.2 score-gap comparison uses the numerical boundary policy documented in `REPAIR_CHANGELOG_0.2.2.md`: absolute 1e-12 score points, zero relative tolerance, no display rounding. The exact 0.95 coverage switch is unchanged. Non-finite arithmetic is an explicit error, not missing evidence.
 
 ## 5. Release claim boundary
 
@@ -78,7 +82,8 @@ Not allowed:
 - live-market freshness unless offer evidence was actually refreshed;
 - production purchase/new-buy/used-buy economics;
 - VERIFIED evidence derived from assumptions or inferred data;
-- describing decision-critical `UNKNOWN` as a failed gate under the canonical Revision A policy.
+- describing decision-critical `UNKNOWN` as a failed gate under the canonical Revision A policy;
+- calling this repair a completed agent interface, end-user pilot or cross-provider certification.
 
 ## 6. Workbook artifact status
 
@@ -86,7 +91,7 @@ Not allowed:
 
 The planned public import/distribution of the reconstructed XLSX was **retired on 2026-09-06**. The retirement does not alter its pinned SHA-256 or provenance claim; it means the raw workbook is no longer a release/distribution task. Do not create a Git/LFS allowlist, release asset or replacement hash merely to publish it.
 
-The separate private `3.2.1-RC1` workbook review track is not an Engine release artifact. Any future public demo workbook needs synthetic inputs, its own fingerprint and fresh QA.
+The separate private `3.2.1-RC1` workbook review track is not an Engine release artifact. Any future public demo workbook needs synthetic inputs, its own fingerprint and fresh QA. The bounded attribution decision in `PRIVACY_SCOPE_2026-09-07.md` is not permission to publish private source packages.
 
 ## 7. Operational decision
 

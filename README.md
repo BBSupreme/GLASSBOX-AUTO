@@ -10,13 +10,13 @@ GLASSBOX-AUTO is the public home of the Leasingmatrix 2026 method and decision e
 
 **Engine release line: 0.2.x**
 
-This tree represents **Engine 0.2.1**, which corrects the canonical decision-critical gate default so it matches binding Revision A: gate `FAIL` is ineligible; decision-critical gate `UNKNOWN` may remain rank-eligible but is always `NOT_READY`. Callers that deliberately need a stricter fail-closed ranking policy can request it explicitly.
+This tree represents **Engine 0.2.2**, a readiness-integrity repair for inclusive close-call boundaries, candidate identity collisions and non-finite calculation results. It retains the 0.2.1 Revision A boundary: gate `FAIL` is ineligible; decision-critical gate `UNKNOWN` may remain rank-eligible but is always `NOT_READY`. Callers that deliberately need a stricter fail-closed ranking policy can request it explicitly.
 
-Version metadata alone does not make a release production-live. A version is live only when its reviewed implementation is on `main` and the repository's go-live gates pass on that exact `main` commit. Until those conditions are met, the same tree is a release candidate.
+Version metadata alone does not make a release production-live. A version is live only when its reviewed implementation is on `main` and the repository's go-live gates pass on that exact `main` commit. Until those conditions are met, the same tree is a release candidate. Known open release blockers override an earlier green test run.
 
 `BUY_NEW` and `BUY_USED` are architectural modes but are **not production-enabled economics modes**. They remain fail-closed until the original acquisition/purchase P1-P3 findings and purchase Economics anchors are recovered or replaced by an explicit source-backed method decision.
 
-See [`docs/PRODUCTION_READINESS.md`](docs/PRODUCTION_READINESS.md), [`docs/RELEASE_0.2.0.md`](docs/RELEASE_0.2.0.md), [`docs/RELEASE_0.2.1.md`](docs/RELEASE_0.2.1.md) and [`docs/KNOWN_LIMITATIONS_v0.2.md`](docs/KNOWN_LIMITATIONS_v0.2.md).
+See [`docs/PRODUCTION_READINESS.md`](docs/PRODUCTION_READINESS.md), [`docs/RELEASE_0.2.2.md`](docs/RELEASE_0.2.2.md), [`docs/REPAIR_CHANGELOG_0.2.2.md`](docs/REPAIR_CHANGELOG_0.2.2.md) and [`docs/KNOWN_LIMITATIONS_v0.2.md`](docs/KNOWN_LIMITATIONS_v0.2.md). Historical releases remain documented in [`docs/RELEASE_0.2.0.md`](docs/RELEASE_0.2.0.md) and [`docs/RELEASE_0.2.1.md`](docs/RELEASE_0.2.1.md).
 
 ## What the 0.2.x engine provides
 
@@ -35,7 +35,8 @@ See [`docs/PRODUCTION_READINESS.md`](docs/PRODUCTION_READINESS.md), [`docs/RELEA
 - new-car and used-car purchase economics;
 - automatic live-market scraping/freshness service;
 - a claim of byte-identical historical v3.2.1 recovery;
-- public distribution of the `3.2.1-R` reconstructed XLSX. That binary import was retired on 2026-09-06; its pinned provenance record remains.
+- public distribution of the `3.2.1-R` reconstructed XLSX. That binary import was retired on 2026-09-06; its pinned provenance record remains;
+- a supported natural-language agent CLI or verified compatibility across AI providers. The public-agent interface and controlled pilot are separate work.
 
 ## Core principle: glass box, not black box
 
@@ -69,6 +70,8 @@ A conclusion that cannot survive adversarial inspection should not be promoted a
 │   ├── PRODUCTION_READINESS.md
 │   ├── RELEASE_0.2.0.md
 │   ├── RELEASE_0.2.1.md
+│   ├── RELEASE_0.2.2.md
+│   ├── REPAIR_CHANGELOG_0.2.2.md
 │   ├── ACQUISITION_PURCHASE_LAYER.md
 │   └── MIGRATION_MANIFEST.md
 ├── fixtures/
@@ -117,7 +120,7 @@ Purchase economics must not treat loan principal as economic cost. Cash flow, fi
 - **contracts / core engine**;
 - **contracts / recovered v3 compatibility**;
 - **release / integrity and package smoke**;
-- **regression / full suite**.
+- **regression / full suite**, with separate Python 3.11, 3.12, 3.13 and 3.14 legs.
 
 A failed run is evidence to investigate, not a nuisance to re-run away. The incident process is documented in [`docs/PRODUCTION_READINESS.md`](docs/PRODUCTION_READINESS.md).
 
@@ -129,7 +132,7 @@ This repository is public by design. Contributions are welcome when they improve
 
 `3.2.1-R` is explicitly a **reconstructed compliance artifact**, not the recovered historical v3.2.1 workbook. Its manifest pins source and output hashes and forbids silently upgrading the historical parity claim. Its public binary import is retired; the provenance record and validator remain. See [`docs/V3_2_1_RECONSTRUCTION_2026-09-03.md`](docs/V3_2_1_RECONSTRUCTION_2026-09-03.md).
 
-The separate private `3.2.1-RC1` workbook review track has its own lineage and release gates. It must not be treated as an Engine release artifact.
+The separate private `3.2.1-RC1` workbook review track has its own lineage and release gates. It must not be treated as an Engine release artifact. Ordinary owner attribution and inspected non-sensitive historical comparisons are accepted under [`docs/PRIVACY_SCOPE_2026-09-07.md`](docs/PRIVACY_SCOPE_2026-09-07.md); sensitive records and new private profiles remain excluded.
 
 ## Disclaimer
 
