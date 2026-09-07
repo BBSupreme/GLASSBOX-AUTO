@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from dataclasses import fields, is_dataclass
 import math
+import unicodedata
 from urllib.parse import quote
 
 CLOSE_CALL_ABS_TOL = 1e-12
@@ -63,8 +64,18 @@ def require_finite_tree(value, field_name: str) -> None:
 
 
 def require_identifier(value: str, field_name: str) -> None:
-    if not isinstance(value, str) or not value.strip() or any(ord(c) < 32 or ord(c) == 127 for c in value):
-        raise ValueError(f"{field_name} must be a non-empty identifier without control characters")
+    # Raw IDs also appear in results: reject Unicode controls, formatting
+    # controls and line/paragraph separators, not only ASCII C0/DEL bytes.
+    prohibited = {"Cc", "Cf", "Zl", "Zp"}
+    if (
+        not isinstance(value, str)
+        or not value.strip()
+        or any(unicodedata.category(c) in prohibited for c in value)
+    ):
+        raise ValueError(
+            f"{field_name} must be a non-empty identifier without Unicode control, "
+            "format or line-separator characters"
+        )
     try:
         value.encode("utf-8")
     except UnicodeEncodeError as exc:

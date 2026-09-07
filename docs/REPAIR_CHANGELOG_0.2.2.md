@@ -16,6 +16,8 @@ older green run permits distribution before the current review and CI gates.
 | #12 / AR-B-02 | Percent-encode each ID component, then join with colon; reject duplicates of serialized IDs AND original pairs before ranking. | Colon/percent/space/Unicode corpus, invalid IDs, pair duplicates, order permutations and exact ties. |
 | #13 / AR-B-03 | Reject non-finite effective weights (before caps), totals, utilities, spans, economics and result leaves; validate score/coverage bounds before ranking. | Sum/product/cap overflow; safe ratio-before-scale, mileage overflow incl inf-inf, nested NaN, valid large weights and ordinary economics. |
 | AR-A-01/02 | Owner accepts the inspected ordinary footprint; sensitive data remains protected. | Separate dated privacy-scope decision; no history rewrite or anonymity claim. |
+| Codex P2 / 3952286063 | Validate canonical serialized candidate ID against raw vehicle/offer fields during evaluation and reranking. | Reject legacy/inconsistent IDs instead of silently returning or migrating ambiguous cached identity. |
+| Codex P2 / 3952286068 | Reject Unicode Cc controls, Cf format controls and Zl/Zp line/paragraph separators in raw IDs. | C1/newline/bidi/format corpus rejected; ordinary accented/CJK and correctly encoded reserved IDs retained. |
 
 ## Numerical policy v1
 
@@ -57,6 +59,14 @@ must not reconstruct identities by unescaped concatenation. Empty/control or
 invalid UTF-8 identifiers fail explicitly. Previously persisted IDs containing
 reserved characters must be rebuilt from the two raw component fields.
 
+Following the separate review, reranking rejects any candidate_id inconsistent
+with the canonical encoding of those raw fields, including legacy IDs and
+caller-supplied custom identities. There is no silent cache migration. Duplicate
+diagnostics are retained before canonical-mismatch diagnostics for repeated IDs
+or pairs. Raw IDs reject Unicode general categories Cc/Cf/Zl/Zp; ordinary Unicode
+letters and permitted spaces/reserved characters retain their explicit encoding.
+This is not a general Unicode-confusable or display-name sanitizer.
+
 ## Initial source execution evidence
 
 - Five baseline core modules matched their recorded Git blob SHAs before tests.
@@ -74,28 +84,45 @@ reserved characters must be rebuilt from the two raw component fields.
 ## Review execution and release-identity preparation
 
 A separate Codex code-review request was posted on PR #14 as comment
-`5574922480`, targeting `f5af174`. The actual bot acknowledged RUNNING in comment
-`5574925082` on 2026-09-07. Only its eventual result, not the request or this
-acknowledgment, establishes a completed review. Outcomes belong to the exact
-reviewed source; a later head needs final-head confirmation.
+`5574922480`, targeting `f5af174`. The bot acknowledged RUNNING in comment
+`5574925082`. Final release-prepared head `44448eab1afac195706fb3371abcd9fbb1b5afbf`
+was submitted in comment `5574981730`; its fresh CI `34156417968` passed all
+seven jobs, including four regression runtimes.
 
 The coordinating assistant also recovered six core modules, verified their Git
 blob identities against `f5af174`, and reran the original 27 falsifiers: 27 PASS
-on Python 3.13.5. This is additional execution, NOT independent reviewer approval
-and NOT a local run of the full repository suite.
+on Python 3.13.5. This is additional builder execution, not independent approval
+and not a local run of the full repository suite.
 
-Release preparation aligns pyproject, runtime version, release-integrity tests,
-wheel smoke, README, production notes and global CHANGELOG on 0.2.2, and adds
-`RELEASE_0.2.2.md`. No decision-math module changes in that preparation step.
-Fresh CI and final reviewer evidence on the new head remain required. Read the
-PR's actual run/review records; this chronological ledger is not a live status
-service. No merge or tag/release is authorized by a status label in this file.
+Release preparation aligned pyproject, runtime version, release-integrity tests,
+wheel smoke, README, production notes and global CHANGELOG on 0.2.2, and added
+`RELEASE_0.2.2.md`. It did not change decision-math modules.
+
+## Separate reviewer findings and correction
+
+At 2026-09-07T19:46:12Z the actual Codex reviewer submitted a review for
+`44448eab1a` with two P2 findings: canonical identity not enforced on reranking
+(comment 3952286063), and Unicode C1 control characters accepted by ASCII-only
+validation (3952286068). This is a completed review with findings, NOT approval.
+The bot did not report a test-run total; none is attributed to it here.
+
+Both reports were accepted and independently reproduced by the coordinating
+assistant on the source snapshot. Nineteen new parameterized controls include
+four noncanonical-ID cases, eight control/format/line-separator cases, six valid
+roundtrip controls and duplicate-diagnostic preservation. Before correction:
+12 FAIL / 7 PASS. After correction: all 19 PASS plus the original 27 unchanged,
+46 PASS total locally on Python 3.13.5. Source compilation passed. No original
+assertion was softened; full repository/runtime checks are delegated to new CI.
+
+The new source requires fresh CI and re-review. Preserve the findings and their
+resolution replies; do not infer approval from obsolete threads or prior green
+runs. Publication remains governed by `PRODUCTION_READINESS.md`.
 
 ## Review and scope
 
 Builder self-review is not independent approval. A separate reviewer must attack
 numeric tolerance breadth, reserved-ID migration, duplicate handling, overflow
-failure behavior and the unchanged default/strict UNKNOWN semantics. Block merge
+failure behavior and unchanged default/strict UNKNOWN semantics. Block merge
 on a material defect or absent evidence. Do not infer supported AI providers or
 current-market validity from passing engine tests.
 
@@ -107,4 +134,5 @@ Research references:
 - https://docs.python.org/3/library/math.html#math.isclose
 - https://docs.python.org/3/library/math.html#math.isfinite
 - https://docs.python.org/3/library/urllib.parse.html#urllib.parse.quote
+- https://docs.python.org/3/library/unicodedata.html#unicodedata.category
 - https://openai.com/index/introducing-upgrades-to-codex/

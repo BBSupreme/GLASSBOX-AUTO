@@ -148,6 +148,11 @@ def _reset_ranking_state(candidate: CandidateResult) -> CandidateResult:
 def _validate_candidate_result(candidate: CandidateResult) -> None:
     for field in ("candidate_id", "vehicle_id", "offer_id"):
         require_identifier(getattr(candidate, field), field)
+    if candidate.candidate_id != make_candidate_id(candidate.vehicle_id, candidate.offer_id):
+        raise ValueError(
+            "candidate_id must match the canonical encoded vehicle/offer pair; "
+            "rebuild legacy IDs from their raw component fields"
+        )
     require_finite_tree(candidate, "candidate")
     if candidate.score is not None:
         require_range(candidate.score, 0.0, 10.0, "score")
@@ -161,10 +166,14 @@ def rank_candidates(candidates: list[CandidateResult]) -> list[CandidateResult]:
     seen_ids: set[str] = set()
     seen_pairs: set[tuple[str, str]] = set()
     for candidate in candidates:
-        _validate_candidate_result(candidate)
+        # Keep duplicate diagnostics stable, then validate the canonical ID.
+        # Check component types before using them as dictionary/set keys.
+        for field in ("candidate_id", "vehicle_id", "offer_id"):
+            require_identifier(getattr(candidate, field), field)
         pair = (candidate.vehicle_id, candidate.offer_id)
         if candidate.candidate_id in seen_ids or pair in seen_pairs:
             raise ValueError("Duplicate candidate identity; IDs and vehicle/offer pairs must be unique")
+        _validate_candidate_result(candidate)
         seen_ids.add(candidate.candidate_id)
         seen_pairs.add(pair)
     candidates = [_reset_ranking_state(candidate) for candidate in candidates]
