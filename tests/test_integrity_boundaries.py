@@ -3,6 +3,7 @@ from dataclasses import asdict, replace
 from itertools import permutations, product
 import json
 import math
+import random
 
 import pytest
 
@@ -100,7 +101,7 @@ def test_rank_rejects_nonfinite_criterion_and_economics_leaves():
         rank_candidates([replace(a, economics={"hidden": {"amount": math.nan}})])
 
 
-@pytest.mark.parametrize("case", ["sum", "product", "cap", "scaled_score"])
+@pytest.mark.parametrize("case", ["sum", "product", "cap"])
 def test_unrepresentable_weights_are_explicit_errors(case):
     c = quality(1e308)
     criteria = (c, quality(1e308, "quality2")) if case == "sum" else (c,)
@@ -110,8 +111,9 @@ def test_unrepresentable_weights_are_explicit_errors(case):
         score_candidate(criteria, {"quality": obs(10), "quality2": obs(10)})
 
 
-def test_large_but_representable_weight_not_arbitrarily_rejected():
-    score, coverage, evidence, results = score_candidate((quality(1e306),), {"quality": obs(10)})
+@pytest.mark.parametrize("weight", [1e306, 1e308])
+def test_large_but_representable_weight_not_arbitrarily_rejected(weight):
+    score, coverage, evidence, results = score_candidate((quality(weight),), {"quality": obs(10)})
     assert (score, coverage, evidence) == (10.0, 1.0, 1.0)
     assert results[0].normalized_weight == 1.0
 
@@ -154,3 +156,27 @@ def test_normal_mileage_costs_and_no_candidate_case_are_preserved():
     assert e["overage_cost"] == 30000
     assert e["total_adjusted_cost"] == 185000
     assert rank_candidates([]) == []
+
+
+@pytest.mark.parametrize("seed", list(range(20)))
+@pytest.mark.parametrize("value,expected", [(0, 0.0), (5, 8.0), (10, 10.0)])
+def test_ordinary_decimal_weights_have_consistent_coverage_and_bounded_score(seed, value, expected):
+    rng = random.Random(seed)
+    weights = [rng.uniform(.01, 100) for _ in range(rng.randint(1, 30))]
+    criteria = tuple(quality(w, f"q{i}") for i, w in enumerate(weights))
+    attrs = {f"q{i}": obs(value) for i in range(len(weights))}
+    score, data, evidence, _ = score_candidate(criteria, attrs)
+    assert (data, evidence) == (1.0, 1.0)
+    assert score == pytest.approx(expected, abs=1e-12)
+    assert 0.0 <= score <= 10.0
+
+
+def test_python313_compensated_total_vs_sequential_subtotal_reproducer():
+    weights = [89.24441007141745, 8.364232176300055, 59.20680241630467,
+               42.380503349413786, 53.01350013169946, 13.038991095335579,
+               19.207795782353877, 44.462911651562564, 22.11170692399034,
+               45.50874555518316]
+    criteria = tuple(quality(w, str(i)) for i, w in enumerate(weights))
+    attrs = {str(i): obs(10) for i in range(len(weights))}
+    score, data, evidence, _ = score_candidate(criteria, attrs)
+    assert (score, data, evidence) == (10.0, 1.0, 1.0)

@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import replace
 import math
 
-from .integrity import require_finite, require_finite_tree, require_range
+from .integrity import finite_sum, require_finite, require_finite_tree, require_range
 
 from .models import (
     Criterion,
@@ -109,12 +109,10 @@ def score_candidate(
     dimension_weights: dict[str, float] | None = None,
 ):
     dimension_weights = dimension_weights or {}
-    total_active_weight = sum(_effective_weight(criterion, dimension_weights) for criterion in criteria if criterion.active)
-    require_finite(total_active_weight, "total active weight")
-    data_weight = 0.0
-    sufficient_weight = 0.0
-    scored_weight = 0.0
-    weighted_utility = 0.0
+    total_active_weight = finite_sum(
+        (_effective_weight(criterion, dimension_weights) for criterion in criteria if criterion.active),
+        "total active weight",
+    )
     results: list[CriterionResult] = []
 
     for criterion in criteria:
@@ -143,11 +141,6 @@ def score_candidate(
             and type_matches
             and GRADE_RANK[observed.evidence.grade] >= GRADE_RANK[criterion.minimum_evidence]
         )
-        if data_present:
-            data_weight += weight
-        if evidence_sufficient:
-            sufficient_weight += weight
-
         if criterion.gate is None:
             gate_state = None
         elif not unit_matches or not type_matches:
@@ -173,14 +166,14 @@ def score_candidate(
 
         utility = piecewise_utility(observed.value, criterion.anchors)
         require_range(utility, 0.0, 1.0, "utility")
-        scored_weight += weight
-        weighted_utility += utility * weight
         results.append(CriterionResult(criterion.criterion_id, utility, weight, gate_state, True, True, True, True))
 
-    for name, value in (("data weight", data_weight), ("sufficient weight", sufficient_weight),
-                        ("scored weight", scored_weight), ("weighted utility", weighted_utility)):
-        require_finite(value, name)
-    score = None if scored_weight == 0 else 10.0 * weighted_utility / scored_weight
+    data_weight = finite_sum((r.weight for r in results if r.active and r.data_present), "data weight")
+    sufficient_weight = finite_sum((r.weight for r in results if r.active and r.evidence_sufficient), "sufficient weight")
+    scored_weight = finite_sum((r.weight for r in results if r.scorable), "scored weight")
+    weighted_utility = finite_sum((r.utility * r.weight for r in results if r.scorable), "weighted utility")
+    # Divide before scaling: a finite weighted mean need not overflow at 10*x.
+    score = None if scored_weight == 0 else 10.0 * (weighted_utility / scored_weight)
     if score is not None:
         require_range(score, 0.0, 10.0, "score")
     data_coverage = 0.0 if total_active_weight == 0 else data_weight / total_active_weight

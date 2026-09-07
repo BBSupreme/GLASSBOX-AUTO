@@ -29,6 +29,16 @@ def require_finite(value: int | float, field_name: str) -> None:
         raise NumericalIntegrityError(f"{field_name} must be a finite number")
 
 
+def finite_sum(values, field_name: str) -> float:
+    """Use one summation algorithm for totals and coverage numerators."""
+    try:
+        result = math.fsum(values)
+    except OverflowError as exc:
+        raise NumericalIntegrityError(f"{field_name} exceeds finite arithmetic") from exc
+    require_finite(result, field_name)
+    return result
+
+
 def require_range(value: int | float, low: float, high: float, field_name: str) -> None:
     require_finite(value, field_name)
     if not low <= value <= high:

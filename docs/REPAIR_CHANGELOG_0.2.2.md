@@ -15,7 +15,7 @@ CHANGELOG.md, then rerun all gates on that new head. No main change is implied.
 |---|---|---|
 | #11 / AR-B-01 | Inclusive gap comparison permits only absolute round-off tolerance 1e-12 score points, with zero relative tolerance. | 0.15/0.20 exact and +/-1e-8 boundary cases at five score levels; +1e-10 remains outside. |
 | #12 / AR-B-02 | Percent-encode each ID component, then join with colon; reject duplicates of serialized IDs AND original pairs before ranking. | Colon/percent/space/Unicode corpus, invalid IDs, pair duplicates, order permutations and exact ties. |
-| #13 / AR-B-03 | Reject non-finite effective weights (before caps), totals, utilities, spans, economics and result leaves; validate score/coverage bounds before ranking. | Sum/product/cap/scale overflow, mileage overflow incl inf-inf, nested NaN, valid large weights and ordinary economics. |
+| #13 / AR-B-03 | Reject non-finite effective weights (before caps), totals, utilities, spans, economics and result leaves; validate score/coverage bounds before ranking. | Sum/product/cap overflow; safe ratio-before-scale, mileage overflow incl inf-inf, nested NaN, valid large weights and ordinary economics. |
 | AR-A-01/02 | Owner accepts the inspected ordinary footprint; sensitive data remains protected. | Separate dated privacy-scope decision; no history rewrite or anonymity claim. |
 
 ## Numerical policy v1
@@ -33,6 +33,22 @@ Finite but unrepresentable intermediate magnitudes can be rejected, even when
 an algebraically rearranged calculation could be finite. No arbitrary clamping
 or zero substitution. This patch is not a general arbitrary-precision engine.
 
+## Self-review correction before independent review
+
+The first 101-test patch passed repository CI (190 tests on the Python 3.11 leg;
+all four runtime legs green), but a deterministic normal-weight stress probe
+then exposed a new guard rejection. Python 3.13's compensated built-in sum for
+the denominator could disagree with sequential += coverage numerators by one
+round-off step. The guard correctly refused coverage above one, but these were
+valid ordinary weights and should not be rejected.
+
+All scoring aggregates now use the same math.fsum algorithm, with explicit
+finite-sum overflow errors. Divide weighted utility by its denominator before
+multiplying by ten, avoiding unnecessary overflow on a representable mean.
+Retain the exact reproducer and 60 seeded anchor controls. No display rounding,
+clamping, weakened coverage bound or removed original review assertion.
+New code requires new exact-head CI; do not reuse the first patch's results.
+
 ## Identity migration
 
 Ordinary unreserved IDs such as `car-1:offer_2` are unchanged. `a:b` / `c`
@@ -47,7 +63,7 @@ reserved characters must be rebuilt from the two raw component fields.
 - Five baseline core modules matched their recorded Git blob SHAs before tests.
 - The unchanged 27-test review suite reproduced 6 failures / 21 passes.
 - After correction the same 27 assertions pass, with no xfail or skipped test.
-- 74 additional parameterized boundary/integrity controls pass: 101 total local
+- 135 additional parameterized boundary/integrity controls pass: 162 total local
   tests, Python 3.13.5 / pytest 9.0.2. Source compilation passes.
 - Local runtime is a byte-verified core snapshot, not a complete clone. Original
   full suite, compatibility and wheel packaging are delegated to exact-head CI.
