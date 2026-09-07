@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import replace
 
 from .economics import lease_economics
+from .integrity import (is_close_call, make_candidate_id, require_finite_tree, require_identifier, require_range)
 from .models import (
     AcquisitionMode,
     AcquisitionOffer,
@@ -53,6 +54,8 @@ def evaluate_candidate(
     pass ``unknown_gate_blocks_eligibility=True``. Gate FAIL remains ineligible
     under both policies.
     """
+    candidate_id = make_candidate_id(vehicle.vehicle_id, offer.offer_id)
+    require_identifier(offer.vehicle_id, "offer.vehicle_id")
     if offer.vehicle_id != vehicle.vehicle_id:
         raise ValueError("Offer vehicle_id does not match vehicle")
 
@@ -108,8 +111,7 @@ def evaluate_candidate(
         if eligibility == Eligibility.ELIGIBLE and "decision_critical_unknown" not in reasons
         else Readiness.NOT_READY
     )
-    candidate_id = f"{vehicle.vehicle_id}:{offer.offer_id}"
-    return CandidateResult(
+    result = CandidateResult(
         candidate_id=candidate_id,
         vehicle_id=vehicle.vehicle_id,
         offer_id=offer.offer_id,
@@ -124,9 +126,12 @@ def evaluate_candidate(
         economics=economics,
         reasons=tuple(dict.fromkeys(reasons)),
     )
+    _validate_candidate_result(result)
+    return result
 
 
 def close_call_threshold(coverage: float) -> float:
+    require_range(coverage, 0.0, 1.0, "coverage")
     return 0.15 if coverage >= 0.95 else 0.20
 
 
@@ -140,7 +145,28 @@ def _reset_ranking_state(candidate: CandidateResult) -> CandidateResult:
     return replace(candidate, close_call=False, readiness=readiness, reasons=reasons)
 
 
+def _validate_candidate_result(candidate: CandidateResult) -> None:
+    for field in ("candidate_id", "vehicle_id", "offer_id"):
+        require_identifier(getattr(candidate, field), field)
+    require_finite_tree(candidate, "candidate")
+    if candidate.score is not None:
+        require_range(candidate.score, 0.0, 10.0, "score")
+    elif candidate.eligibility == Eligibility.ELIGIBLE:
+        raise ValueError("An eligible candidate must have a finite score")
+    require_range(candidate.data_coverage, 0.0, 1.0, "data_coverage")
+    require_range(candidate.evidence_coverage, 0.0, 1.0, "evidence_coverage")
+
+
 def rank_candidates(candidates: list[CandidateResult]) -> list[CandidateResult]:
+    seen_ids: set[str] = set()
+    seen_pairs: set[tuple[str, str]] = set()
+    for candidate in candidates:
+        _validate_candidate_result(candidate)
+        pair = (candidate.vehicle_id, candidate.offer_id)
+        if candidate.candidate_id in seen_ids or pair in seen_pairs:
+            raise ValueError("Duplicate candidate identity; IDs and vehicle/offer pairs must be unique")
+        seen_ids.add(candidate.candidate_id)
+        seen_pairs.add(pair)
     candidates = [_reset_ranking_state(candidate) for candidate in candidates]
 
     eligible_currencies = {candidate.currency for candidate in candidates if candidate.eligibility == Eligibility.ELIGIBLE}
@@ -171,7 +197,7 @@ def rank_candidates(candidates: list[CandidateResult]) -> list[CandidateResult]:
     for contender in eligible[1:]:
         pair_coverage = min(leader.evidence_coverage, contender.evidence_coverage)
         threshold = close_call_threshold(pair_coverage)
-        if abs(leader.score - contender.score) <= threshold:
+        if is_close_call(leader.score, contender.score, threshold):
             close_ids.add(contender.candidate_id)
 
     if len(close_ids) == 1:

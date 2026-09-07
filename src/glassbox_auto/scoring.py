@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import replace
 import math
 
+from .integrity import require_finite, require_finite_tree, require_range
+
 from .models import (
     Criterion,
     CriterionResult,
@@ -19,6 +21,10 @@ from .models import (
 
 def piecewise_utility(value: float, anchors: UtilityAnchors) -> float:
     f, n, s, u_need = anchors.floor, anchors.need, anchors.stretch, anchors.need_utility
+    require_finite(value, "utility value")
+    # Reject unrepresentable spans before division can turn overflow into zero.
+    require_finite(n - f, "floor-to-need span")
+    require_finite(s - n, "need-to-stretch span")
     if anchors.direction == UtilityDirection.HIGHER_IS_BETTER:
         if not (f < n < s):
             raise ValueError("HIGHER_IS_BETTER requires floor < need < stretch")
@@ -87,6 +93,7 @@ def evaluate_gate(observed: ObservedValue | None, gate: GateDefinition) -> GateS
 def _effective_weight(criterion: Criterion, dimension_weights: dict[str, float]) -> float:
     dimension_weight = dimension_weights.get(criterion.dimension, 1.0) if criterion.dimension else 1.0
     weight = criterion.base_weight * criterion.subweight * dimension_weight * PREFERENCE_MULTIPLIERS[criterion.preference]
+    require_finite(weight, "effective weight before cap")
     if criterion.weight_cap is not None:
         weight = min(weight, criterion.weight_cap)
     if criterion.preference == PreferenceLabel.MUST_HAVE and criterion.active and weight <= 0:
@@ -103,6 +110,7 @@ def score_candidate(
 ):
     dimension_weights = dimension_weights or {}
     total_active_weight = sum(_effective_weight(criterion, dimension_weights) for criterion in criteria if criterion.active)
+    require_finite(total_active_weight, "total active weight")
     data_weight = 0.0
     sufficient_weight = 0.0
     scored_weight = 0.0
@@ -164,15 +172,24 @@ def score_candidate(
             continue
 
         utility = piecewise_utility(observed.value, criterion.anchors)
+        require_range(utility, 0.0, 1.0, "utility")
         scored_weight += weight
         weighted_utility += utility * weight
         results.append(CriterionResult(criterion.criterion_id, utility, weight, gate_state, True, True, True, True))
 
+    for name, value in (("data weight", data_weight), ("sufficient weight", sufficient_weight),
+                        ("scored weight", scored_weight), ("weighted utility", weighted_utility)):
+        require_finite(value, name)
     score = None if scored_weight == 0 else 10.0 * weighted_utility / scored_weight
+    if score is not None:
+        require_range(score, 0.0, 10.0, "score")
     data_coverage = 0.0 if total_active_weight == 0 else data_weight / total_active_weight
     evidence_coverage = 0.0 if total_active_weight == 0 else sufficient_weight / total_active_weight
 
     if scored_weight:
         results = [replace(result, normalized_weight=(result.weight / scored_weight if result.scorable else 0.0)) for result in results]
 
+    require_range(data_coverage, 0.0, 1.0, "data coverage")
+    require_range(evidence_coverage, 0.0, 1.0, "evidence coverage")
+    require_finite_tree(results, "criterion results")
     return score, data_coverage, evidence_coverage, tuple(results)

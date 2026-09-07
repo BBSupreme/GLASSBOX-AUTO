@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from .integrity import require_finite, require_finite_tree
+
 from .models import (
     AcquisitionMode,
     AcquisitionOffer,
@@ -59,6 +61,7 @@ def _derived_value(
             unit=unit,
         )
 
+    require_finite(value, "derived economics value")
     grade = _minimum_grade(inputs)
     if max_grade is not None and GRADE_RANK[grade] > GRADE_RANK[max_grade]:
         grade = max_grade
@@ -107,6 +110,7 @@ def lease_economics(offer: AcquisitionOffer, profile: UserProfile) -> dict[str, 
     base_cash_cost = None
     if term_months is not None and upfront is not None and recurring is not None and fees is not None:
         base_cash_cost = upfront + recurring * term_months + fees
+        require_finite(base_cash_cost, "base cash cost")
 
     expected_total_km = None
     contracted_total_km = None
@@ -127,7 +131,10 @@ def lease_economics(offer: AcquisitionOffer, profile: UserProfile) -> dict[str, 
         years = term_months / 12.0
         expected_total_km = profile.expected_annual_km * years
         contracted_total_km = annual_km * years
+        require_finite(expected_total_km, "expected total km")
+        require_finite(contracted_total_km, "contracted total km")
         delta = expected_total_km - contracted_total_km
+        require_finite(delta, "mileage delta")
         mileage_inputs = [offer.annual_km, offer.term_months]
 
         if delta > 0:
@@ -195,7 +202,7 @@ def lease_economics(offer: AcquisitionOffer, profile: UserProfile) -> dict[str, 
         ),
     }
 
-    return {
+    result = {
         "base_cash_cost": base_cash_cost,
         "overage_cost": overage_cost,
         "unused_km_value_loss": unused_km_value_loss,
@@ -207,3 +214,5 @@ def lease_economics(offer: AcquisitionOffer, profile: UserProfile) -> dict[str, 
         "reasons": tuple(dict.fromkeys(reasons)),
         "derived_attributes": derived,
     }
+    require_finite_tree(result, "economics")
+    return result
