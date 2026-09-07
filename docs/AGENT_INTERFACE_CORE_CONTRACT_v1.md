@@ -22,6 +22,13 @@ review accepts the concrete core decisions below.** Only approved public preset
 mappings and current-market freshness parameters may be deferred for the frozen
 synthetic prototype; serializer, error ordering and resource limits may not.
 
+The subsequent review of `443cd8d` found two further P1 contract ambiguities:
+3952355111 (raw transport hash could leak into the deterministic payload) and
+3952355115 (required general dates were validated after method dispatch). Both
+are accepted. Sections 2 and 3 below now define the exact output projection and
+move all mode-independent structural/date validation before method dispatch.
+No implementation or pilot result is attributed to this specification repair.
+
 Current-market and specifically named provider claims remain BLOCKED by the
 parent's additional policy, execution and pilot gates. Spec acceptance is not
 release approval. No test or pilot outcome is inferred from the planned cases.
@@ -64,8 +71,27 @@ Maintain three distinct digests using SHA-256 lowercase hexadecimal:
 1. `raw_request_sha256`: exact bounded input-file bytes, for transport provenance.
 2. `normalized_request_sha256`: canonical bytes of the validated normalized
    request, including fixed assessment time, policy ID, profile and evidence.
-3. `decision_payload_sha256`: canonical decision payload excluding its own
-   digest and excluding any runtime envelope.
+3. `decision_payload_sha256`: canonical bytes of the `decision` object only,
+   excluding all siblings in the successful output envelope defined below.
+
+The successful output has exactly these top-level fields:
+
+- `decision`: deterministic decision payload. It contains the parent-required
+  engine/code/policy/schema identities, normalized request/profile fingerprints,
+  fixed assessment time, engine results, coverage, reasons and evidence references.
+- `decision_payload_sha256`: digest of the canonical `decision` object; the
+  digest is a sibling and is never part of its own input.
+- `transport`: includes `raw_request_sha256`. It is outside `decision` and is
+  NOT hashed into `decision_payload_sha256` or normalized request/profile hashes.
+- optional `runtime`: execution timestamps, provider/tool identity and duration;
+  likewise outside every deterministic decision/profile/request fingerprint.
+
+`raw_request_sha256`, input formatting, input file paths, runtime metadata and
+free-form agent commentary are forbidden inside `decision`. They must not be
+copied indirectly into its warnings or identifiers. This is a closed projection,
+not an instruction to hash arbitrary fields and subtract an ad-hoc exclusion list.
+Required request fingerprints inside `decision` mean normalized request/profile
+fingerprints only, superseding the parent's broader wording.
 
 `profile_sha256` separately hashes the canonical object containing `policy_id`
 and the entire resolved profile. Any change, even conservative extra changes to
@@ -74,14 +100,18 @@ boolean is authentication; retain the actual confirmation interaction as the
 parent requires.
 
 Request key-order changes leave normalized and decision digests stable, but may
-change the raw digest. ID-indexed-array permutations normalize identically.
-Changing a semantic sequence may change the digest. Changing assessment time,
-profile or evidence must change the relevant request fingerprint. Runtime
-executed_at/provider/tool identity/duration live only in the runtime envelope.
+change the raw digest and therefore the complete output envelope bytes.
+ID-indexed-array permutations normalize identically. Changing a semantic sequence
+may change the digest. Changing assessment time, profile or evidence must change
+the relevant request fingerprint. Identical deterministic payloads do not require
+identical transport/runtime envelopes. This distinction supersedes any parent
+requirement for byte-identical full outputs across clocks or transport formatting.
 
-Golden fixtures must compare actual output across Python 3.11/3.12/3.13/3.14.
-Any serializer divergence is a prototype blocker, not an excuse to accept a
-provider-specific result. This specification does not prove those tests passed.
+Golden fixtures must compare canonical `decision` bytes and their digest across
+Python 3.11/3.12/3.13/3.14. Also assert that raw hashes can change without changing
+those decision bytes. Any serializer divergence is a prototype blocker, not an
+excuse to accept a provider-specific result. These tests have not been executed
+against a public interface; that interface is not yet built.
 
 ## 3. Strict parsing and deterministic error precedence
 
@@ -92,19 +122,31 @@ values, secrets, local file contents or source-page instructions.
 | Phase | Condition | Exit |
 |---|---|---|
 | 1 | Invalid CLI arguments, unreadable input, forbidden input/output alias, already-existing output path | 2 |
-| 2 | Byte/depth/node/string limits, malformed JSON, duplicate keys, bad UTF-8/surrogates, non-finite or out-of-range wire numbers, unsupported schema version or unknown general fields | 2 |
-| 3 | Recognized but method-blocked BUY_NEW/BUY_USED in any offer | 3 |
-| 4 | Lease-specific structural/semantic validation: references, identifiers, units, policy/confirmation, required general dates | 2 |
+| 2 | Input resource limits, malformed JSON, duplicate keys, invalid wire numbers/encoding, unsupported schema version, missing/invalid mode-independent fields, unknown general fields, asserted general date formats | 2 |
+| 3 | Recognized but method-blocked BUY_NEW/BUY_USED in any generally valid offer | 3 |
+| 4 | Lease-specific structural/semantic validation: required lease fields, references, identifier/pair integrity, units, allowed lease policy and confirmation | 2 |
 | 5 | Otherwise valid request contains incompatible currencies without approved conversion | 6 |
 | 6 | Otherwise valid request supplies zero offers | 5 |
 | 7 | Engine/internal arithmetic/invariant failure, timeout or output-publication failure | 4 |
 | 8 | Evaluation completes, including valid BLOCKED/FAILED/NOT_READY candidates | 0 |
 
+Phase 2 validates every mode-independent schema requirement, including the
+presence/type/format of `assessment_at`, schema/policy IDs, profile and collection
+shapes, general observation/evidence fields, and any supplied general source dates.
+Optional absent evidence remains absent where allowed; a supplied invalid general
+date is not hidden behind a purchase-mode error. General schema validation must
+complete before phase 3. Only lease-specific requirements and their method-bound
+semantic checks are deferred to phase 4; no lease payments or terms are invented
+to make a generally valid purchase request reach its explicit method block.
+
 Unknown acquisition modes are invalid general fields (phase 2); recognized
 purchase modes receive phase 3 without requiring fabricated lease-only fields.
-A malformed request does not obtain a method diagnosis before parse validation.
+A malformed request does not obtain a method diagnosis before general validation.
 Mixed supported/unsupported mode bundles fail as a whole; do not silently drop
-unsupported candidates or relabel them as leases.
+unsupported candidates or relabel them as leases. Retain two precedence controls:
+BUY_USED plus missing/invalid assessment_at -> exit 2; generally valid BUY_USED
+without lease-only fields -> exit 3. These are required future CLI tests, not
+observed outputs from an interface that has not been implemented.
 
 Evidence may be missing where the contract supports UNKNOWN. A scored but
 ineligible candidate, or an all-blocked result set with useful explanations, is
@@ -152,11 +194,12 @@ file in the destination directory; publish through an atomic no-overwrite
 operation and remove temporary data on failure. A concurrent writer creating the
 destination must cause failure, not be overwritten. Do not append to stale output.
 
-When no output path is supplied, stdout carries only a canonical successful
-result. Errors produce nonzero exit, structured error diagnostics on stderr and
-no success-shaped stdout. The agent must check exit status, code/policy identity
-and request fingerprint before reading or explaining a result. A result file
-from a previous attempt is never substitute evidence for a failed command.
+When no output path is supplied, stdout carries only the canonically serialized
+successful output envelope from section 2. Errors produce nonzero exit, structured
+error diagnostics on stderr and no success-shaped stdout. The agent must check
+exit status, code/policy identity and normalized request fingerprint before
+reading or explaining the decision. A result file from a previous attempt is
+never substitute evidence for a failed command.
 
 ## 6. Additional pilot falsifiers
 
@@ -198,10 +241,12 @@ evidence runs, actual advertised-environment conformance, and final adversarial
 review. Passing code review does not establish user confirmation, source truth,
 a completed usability pilot or multi-provider compatibility.
 
-Change record: resolves the core-contract ambiguity with concrete choices; adds
-traceability-versus-truth and separates capable injection from execution denial.
-Parent v0.2 and original v0.1 remain preserved for provenance, not alternate
-contracts the agent may opportunistically select.
+Change record: resolved the core-contract ambiguity with concrete choices; added
+traceability-versus-truth and separated capable injection from execution denial.
+Follow-up 443cd8d review: explicit decision/transport/runtime projection excludes
+raw transport from deterministic hashes; general schema/date validation precedes
+method dispatch. Each correction remains subject to separate re-review. Parent
+v0.2 and original v0.1 remain provenance, not alternate runtime contracts.
 
 References:
 - https://docs.python.org/3/library/json.html
