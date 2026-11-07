@@ -1,0 +1,278 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:glassbox-auto:offer-check-request:v1",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": "offer-check-request.v1"
+    },
+    "policy_id": {
+      "const": "dk-private-lease.v1"
+    },
+    "assessment_at": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"
+    },
+    "profile": {
+      "type": "object",
+      "properties": {
+        "expected_annual_km": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 200000
+        },
+        "max_initial_non_monthly_dkk": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 10000000,
+          "x-decimal-places": 2,
+          "description": "Decimal precision is checked exactly by the Python semantic validator."
+        },
+        "max_monthly_dkk": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 10000000,
+          "x-decimal-places": 2,
+          "description": "Decimal precision is checked exactly by the Python semantic validator."
+        },
+        "monthly_budget_basis": {
+          "enum": [
+            "LEASE_ONLY",
+            "LEASE_AND_INSURANCE"
+          ]
+        }
+      },
+      "required": [
+        "expected_annual_km",
+        "max_initial_non_monthly_dkk",
+        "max_monthly_dkk",
+        "monthly_budget_basis"
+      ],
+      "additionalProperties": false
+    },
+    "confirmation": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "request_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          },
+          "required": [
+            "request_sha256"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "offers": {
+      "type": "array",
+      "maxItems": 250,
+      "items": {
+        "type": "object",
+        "properties": {
+          "offer_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "vehicle": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "mode": {
+            "enum": [
+              "LEASE_NEW",
+              "BUY_NEW",
+              "BUY_USED"
+            ]
+          },
+          "currency": {
+            "type": "string",
+            "pattern": "^[A-Z]{3}$"
+          },
+          "source": {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "enum": [
+                  "SYNTHETIC",
+                  "USER_SUPPLIED"
+                ]
+              },
+              "locator": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "minLength": 1,
+                "maxLength": 1024
+              },
+              "url": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uri",
+                "maxLength": 8192
+              },
+              "observed_on": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date"
+              },
+              "valid_until": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date"
+              },
+              "conflict": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "kind",
+              "locator",
+              "url",
+              "observed_on",
+              "valid_until",
+              "conflict"
+            ],
+            "additionalProperties": false
+          },
+          "term_months": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1,
+            "maximum": 120
+          },
+          "monthly_payment_count": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1,
+            "maximum": 120
+          },
+          "annual_km": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1,
+            "maximum": 200000
+          },
+          "upfront_payment_dkk": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 10000000,
+            "x-decimal-places": 2,
+            "description": "Decimal precision is checked exactly by the Python semantic validator."
+          },
+          "monthly_payment_dkk": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 10000000,
+            "x-decimal-places": 2,
+            "description": "Decimal precision is checked exactly by the Python semantic validator."
+          },
+          "mandatory_fees_dkk": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 10000000,
+            "x-decimal-places": 2,
+            "description": "Decimal precision is checked exactly by the Python semantic validator."
+          },
+          "fees_upfront_dkk": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 10000000,
+            "x-decimal-places": 2,
+            "description": "Decimal precision is checked exactly by the Python semantic validator."
+          },
+          "refundable_deposit_dkk": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 10000000,
+            "x-decimal-places": 2,
+            "description": "Decimal precision is checked exactly by the Python semantic validator."
+          },
+          "monthly_insurance_dkk": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 10000000,
+            "x-decimal-places": 2,
+            "description": "Decimal precision is checked exactly by the Python semantic validator."
+          },
+          "overage_dkk_per_km": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 100,
+            "x-decimal-places": 6,
+            "description": "Decimal precision is checked exactly by the Python semantic validator."
+          }
+        },
+        "required": [
+          "offer_id",
+          "vehicle",
+          "mode",
+          "currency",
+          "source"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "schema_version",
+    "policy_id",
+    "assessment_at",
+    "profile",
+    "offers"
+  ],
+  "additionalProperties": false,
+  "description": "Closed structural schema. Python additionally enforces lease-only required fields, dates/identifier semantics, schedule equality, decimal precision and confirmation. Recognized purchases reach an explicit method block without fabricated lease fields. Integer fields additionally require integer JSON tokens (36 is accepted; 36.0 is rejected) rather than JSON Schema mathematical integer equivalence. x-decimal-places is an annotation enforced by the Python semantic validator."
+}

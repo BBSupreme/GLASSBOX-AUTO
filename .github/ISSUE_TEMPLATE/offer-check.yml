@@ -1,0 +1,43 @@
+name: Offer-check problem or unclear result
+description: Report a reproducible calculation, input, or explanation problem.
+title: "[Offer check] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please use synthetic numbers and labels. Do not attach your personal quote,
+        household profile, account details or an unredacted conversation.
+  - type: input
+    id: revision
+    attributes:
+      label: Commit and package version
+      description: Use git rev-parse HEAD and python -m glassbox_auto.cli --version.
+    validations:
+      required: true
+  - type: input
+    id: runtime
+    attributes:
+      label: Python version and operating system
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Synthetic reproducer and command
+      description: Smallest fictional input and exact command. State explicitly if the CLI was not executed.
+    validations:
+      required: true
+  - type: textarea
+    id: result
+    attributes:
+      label: Observed result and exit code
+      description: Share only the sanitized output needed to explain the problem.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result and reason
+      description: Include a calculation or public source link where useful.
+    validations:
+      required: true

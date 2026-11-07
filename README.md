@@ -2,138 +2,104 @@
 
 [![engine-ci](https://github.com/BBSupreme/GLASSBOX-AUTO/actions/workflows/engine-ci.yml/badge.svg?branch=main)](https://github.com/BBSupreme/GLASSBOX-AUTO/actions/workflows/engine-ci.yml)
 
-**Open, auditable decision support for car acquisition.**
+**Check the costs and missing terms in a private-leasing offer, with an AI assistant and an open Python engine.**
 
-GLASSBOX-AUTO is the public home of the Leasingmatrix 2026 method and decision engine. The goal is not a black-box “best car” score. The goal is to make assumptions, evidence, economics, weighting, gates, uncertainty and recommendation logic inspectable and falsifiable.
+[Dansk: start her](docs/QUICKSTART_DA.md) · [AI and command-line guide](docs/AI_QUICKSTART.md) · [Input contract](docs/OFFER_CHECK_CONTRACT_v1.md) · [Method](docs/METHOD.md)
 
-## Status
+Give your assistant dated offers and your expected mileage. It prepares reviewable inputs, asks you to confirm them, runs the engine, and explains the result. You can inspect the inputs, formulas and code behind every calculation.
 
-**Engine release line: 0.2.x**
+The input contract covers Danish private operating leases for new cars, with VAT-inclusive DKK prices and constant monthly payments. Used-car leasing, business/ex-VAT offers, financial/flexleasing and residual-value obligations are outside this beta.
 
-This tree represents **Engine 0.2.2**, a readiness-integrity repair for inclusive close-call boundaries, candidate identity collisions and non-finite calculation results. It retains the 0.2.1 Revision A boundary: gate `FAIL` is ineligible; decision-critical gate `UNKNOWN` may remain rank-eligible but is always `NOT_READY`. Callers that deliberately need a stricter fail-closed ranking policy can request it explicitly.
+**Status: public offer-checker beta.** A feature branch is a release candidate; the release is active only when the reviewed implementation and all passing checks are on the exact `main` commit. A green badge for an older commit is insufficient. See [production readiness](docs/PRODUCTION_READINESS.md).
 
-Version metadata alone does not make a release production-live. A version is live only when its reviewed implementation is on `main` and the repository's go-live gates pass on that exact `main` commit. Until those conditions are met, the same tree is a release candidate. Known open release blockers override an earlier green test run.
+## What you get
 
-`BUY_NEW` and `BUY_USED` are architectural modes but are **not production-enabled economics modes**. They remain fail-closed until the original acquisition/purchase P1-P3 findings and purchase Economics anchors are recovered or replaced by an explicit source-backed method decision.
+| The checker shows | What the result does not establish |
+|---|---|
+| Lease payments over the full term and their monthly average | The entire cost of running the car |
+| Recurring payment and initial non-monthly cash separately | That a low advertised payment makes the car affordable |
+| Flat extra-kilometre charge scenarios, with the required inputs | That the contract permits your intended mileage |
+| Missing values, source dates and stated offer expiry | That the source is correct or the offer is available |
+| Calculations for the offers you supply | A best-car ranking, market search, or purchase-versus-lease advice |
 
-See [`docs/PRODUCTION_READINESS.md`](docs/PRODUCTION_READINESS.md), [`docs/RELEASE_0.2.2.md`](docs/RELEASE_0.2.2.md), [`docs/REPAIR_CHANGELOG_0.2.2.md`](docs/REPAIR_CHANGELOG_0.2.2.md) and [`docs/KNOWN_LIMITATIONS_v0.2.md`](docs/KNOWN_LIMITATIONS_v0.2.md). Historical releases remain documented in [`docs/RELEASE_0.2.0.md`](docs/RELEASE_0.2.0.md) and [`docs/RELEASE_0.2.1.md`](docs/RELEASE_0.2.1.md).
+Unknown amounts stay unknown. A refundable deposit affects cash required but is kept outside the nonrefundable lease total. Different durations and mileage allowances remain visible. The evaluator does not fetch URLs, authenticate quotes or certify vehicle suitability.
 
-## What the 0.2.x engine provides
+## Start with an AI assistant
 
-- deterministic Python decision engine for private leasing;
-- user-specific criteria, editable weights and Must-have gates;
-- Floor / Need / Stretch utility curves;
-- evidence grades, provenance, coverage and readiness controls;
-- lease economics, mileage scenarios and stress testing;
-- recovered-v3 compatibility adapters for Confidence, Readiness, offer freshness and composite gates;
-- explicit Revision A vs recovered-v3 source-track differences rather than silent reconciliation;
-- `3.2.1-R` reconstruction manifest and executable workbook validator as historical provenance/compatibility evidence;
-- adversarial regression suite and classified CI release gates.
-
-## What is not production scope
-
-- new-car and used-car purchase economics;
-- automatic live-market scraping/freshness service;
-- a claim of byte-identical historical v3.2.1 recovery;
-- public distribution of the `3.2.1-R` reconstructed XLSX. That binary import was retired on 2026-09-06; its pinned provenance record remains;
-- a supported natural-language agent CLI or verified compatibility across AI providers. The public-agent interface and controlled pilot are separate work.
-
-## Core principle: glass box, not black box
-
-Every recommendation should be traceable to:
-
-1. **Source evidence** — where the number or claim came from.
-2. **Normalization** — how unlike offers were made comparable.
-3. **Assumptions** — what had to be estimated or inferred.
-4. **Decision logic** — weights, gates, utility curves and scenario rules.
-5. **Uncertainty** — what is verified, estimated, missing or decision-critical.
-6. **Output** — why one candidate ranks above another.
-
-A conclusion that cannot survive adversarial inspection should not be promoted as decision-ready.
-
-## Repository map
+The assistant needs these files **and the ability to run Python**. Reading this GitHub page alone is not enough. Copy this prompt into a capable assistant:
 
 ```text
-.
-├── README.md
-├── CHANGELOG.md
-├── LICENSE
-├── CONTRIBUTING.md
-├── pyproject.toml
-├── .github/workflows/
-│   └── engine-ci.yml
-├── docs/
-│   ├── PROJECT_CHARTER.md
-│   ├── METHOD.md
-│   ├── DECISIONS.md
-│   ├── QA_AND_VALIDATION.md
-│   ├── PRODUCTION_READINESS.md
-│   ├── RELEASE_0.2.0.md
-│   ├── RELEASE_0.2.1.md
-│   ├── RELEASE_0.2.2.md
-│   ├── REPAIR_CHANGELOG_0.2.2.md
-│   ├── ACQUISITION_PURCHASE_LAYER.md
-│   └── MIGRATION_MANIFEST.md
-├── fixtures/
-│   └── v3/
-├── src/
-│   └── glassbox_auto/
-└── tests/
+Use GLASSBOX-AUTO to check my private-leasing offers:
+https://github.com/BBSupreme/GLASSBOX-AUTO
+
+Read AGENTS.md and docs/AI_QUICKSTART.md from the same pinned commit.
+First check whether you can actually read the files and run the Python CLI.
+If you cannot, say UNEXECUTED and help me prepare the inputs instead.
+
+Ask for my offers, expected annual mileage and any budget limits. Preserve
+missing terms as unknown. Show me the complete prepared inputs, sources,
+dates and assumptions before asking for confirmation. After I confirm,
+execute the checker and explain its output, with the command, version,
+request fingerprint and result fingerprint. Do not substitute your own
+ranking or claim that supplied offer details have been verified.
 ```
 
-## Canonical method decisions
+Use the [Danish prompt and intake guide](docs/QUICKSTART_DA.md) if you prefer. An assistant without execution tools can help read a quote and identify unanswered questions; it must label that work **UNEXECUTED**.
 
-The current method inherits the Leasingmatrix 2026 v3 line and binding Revision A decisions. Among the locked rules:
+## Run a synthetic example locally
 
-- **Must-have** is both a very-high weight and a decision-critical gate.
-- Missing data is not silently scored as zero; scoring excludes unavailable values while coverage/readiness expose the gap.
-- Gate `FAIL` is ineligible; decision-critical `UNKNOWN` may remain ranked but cannot be READY.
-- Safety is a gate plus capped child-protection evidence inside Family, not an independent free-floating weight.
-- Diminishing utility uses fixed piecewise-linear **Floor / Need / Stretch** anchors.
-- Readiness is driven by decision-critical uncertainty and close-call state.
-- Modeled real-world range is **ESTIMATED**; **VERIFIED** requires matched measurement evidence.
-- Close-call thresholds are stricter when the applicable evidence-coverage rule is high.
-- Historical source conflicts are represented explicitly rather than resolved by whichever behavior reproduces a desired ranking.
+Requires Python 3.11 or newer. The examples contain fictional offers, not current deals.
 
-See [`docs/DECISIONS.md`](docs/DECISIONS.md) and [`docs/METHOD.md`](docs/METHOD.md).
+```bash
+git clone https://github.com/BBSupreme/GLASSBOX-AUTO.git
+cd GLASSBOX-AUTO
+python -m venv .venv
+```
 
-## Acquisition architecture
+Activate with `source .venv/bin/activate` on macOS/Linux or `.venv\Scripts\Activate.ps1` in Windows PowerShell, then:
 
-The model separates:
+```bash
+python -m pip install .
+python -m glassbox_auto.cli --version
+python -m glassbox_auto.cli example
+python -m glassbox_auto.cli prepare src/glassbox_auto/examples/complete.json
+```
 
-- **Vehicle** — the underlying car/configuration.
-- **AcquisitionOffer** — a specific lease/new-buy/used-buy offer.
-- **DecisionCandidate** — the comparable object used by the engine.
+Continue with the [complete example walkthrough](docs/AI_QUICKSTART.md#try-the-synthetic-example) to confirm the inputs and run the assessment. Keep a record of `git rev-parse HEAD`; use the same commit for the schema, executable and instructions.
 
-Modes are:
+The CLI has two steps:
 
-- `LEASE_NEW` — production-supported in the 0.2.x release line;
-- `BUY_NEW` — fail-closed pending method completion;
-- `BUY_USED` — fail-closed pending method completion.
+```bash
+python -m glassbox_auto.cli prepare request.json
+python -m glassbox_auto.cli assess confirmed-request.json --output result.json
+```
 
-Purchase economics must not treat loan principal as economic cost. Cash flow, financing, equity/residual value and economic cost remain separate views.
+`prepare` validates and displays the request. `assess` requires the current request fingerprint recorded after confirmation. The safe `--output` writer requires POSIX filesystem primitives and never overwrites a file; on other systems omit `--output` and read JSON from stdout. A zero exit code means calculation completed; it is not approval to sign a lease.
 
-## CI and incident handling
+## Read the result correctly
 
-`engine-ci` deliberately separates failures into:
+Start with missing terms and source limitations. Keep duration and mileage alongside each price. An average monthly payment spreads the nonrefundable initial payment and fees across the term; it differs from the bill due each month.
 
-- **contracts / core engine**;
-- **contracts / recovered v3 compatibility**;
-- **release / integrity and package smoke**;
-- **regression / full suite**, with separate Python 3.11, 3.12, 3.13 and 3.14 legs.
+The `max_initial_non_monthly_dkk` check covers the initial payment, fees due initially and refundable deposit. **It excludes the first regular monthly instalment.** Add that instalment separately when planning day-one cash. The monthly limit checks the recurring lease payment, with incremental insurance only if you selected that basis. Neither limit is a complete affordability assessment.
 
-A failed run is evidence to investigate, not a nuisance to re-run away. The incident process is documented in [`docs/PRODUCTION_READINESS.md`](docs/PRODUCTION_READINESS.md).
+All supplied source details remain unverified assertions. A URL, recent date, hash and your confirmation improve traceability; none proves the quote true. Recheck material terms with the provider. No named AI-provider compatibility is claimed; actual file and process capabilities determine whether a run is possible.
 
-## Open-source posture
+## Report a problem
 
-This repository is public by design. Contributions are welcome when they improve transparency, evidence quality, correctness or reproducibility. Manufacturer marketing claims, dealer offers, journalistic tests, user reports and modeled estimates must not be treated as equivalent evidence.
+[Open an issue](https://github.com/BBSupreme/GLASSBOX-AUTO/issues/new/choose) with the commit, Python version, exact command, observed result and expected result. A small synthetic reproducer is best. Remove names, addresses, account numbers, quote identifiers and other private details before sharing. The evaluator does not upload requests or results; your AI host has its own handling of anything you give it.
 
-## Artifact provenance
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development and validation. The schemas are versioned; beta status is not a promise of compatibility with future versions.
 
-`3.2.1-R` is explicitly a **reconstructed compliance artifact**, not the recovered historical v3.2.1 workbook. Its manifest pins source and output hashes and forbids silently upgrading the historical parity claim. Its public binary import is retired; the provenance record and validator remain. See [`docs/V3_2_1_RECONSTRUCTION_2026-09-03.md`](docs/V3_2_1_RECONSTRUCTION_2026-09-03.md).
+## Engine, method and historical work
 
-The separate private `3.2.1-RC1` workbook review track has its own lineage and release gates. It must not be treated as an Engine release artifact. Ordinary owner attribution and inspected non-sensitive historical comparisons are accepted under [`docs/PRIVACY_SCOPE_2026-09-07.md`](docs/PRIVACY_SCOPE_2026-09-07.md); sensitive records and new private profiles remain excluded.
+The underlying engine also contains criteria, weights, Must-have gates, Floor / Need / Stretch utility curves, evidence coverage, close-call controls and recovered-v3 compatibility adapters. These lower-level capabilities are broader than the public offer check. The beta does not invent preferences or utility anchors, or turn a cost comparison into an overall vehicle ranking.
 
-## Disclaimer
+Binding Revision A rules remain in [DECISIONS.md](docs/DECISIONS.md) and [METHOD.md](docs/METHOD.md). Gate `FAIL` is ineligible; decision-critical `UNKNOWN` may remain rank-eligible but is always `NOT_READY`. Modeled real-world range is `ESTIMATED`; `VERIFIED` requires matched measurement. The unresolved PC-01 coverage-authority distinction remains explicit.
 
-This project is decision support, not financial, legal, tax, insurance or automotive safety advice. Pricing, taxation, incentives, specifications and offers can change. Verify decision-critical facts against current primary sources before acting.
+`BUY_NEW` and `BUY_USED` remain method-blocked. Purchase economics needs its own source-backed method and release. The broader agent-ranking design in [PR #10](https://github.com/BBSupreme/GLASSBOX-AUTO/pull/10) is separate from this narrower contract.
+
+`3.2.1-R` is historical reconstruction evidence, not a recovered byte-identical workbook. Its public XLSX distribution was retired; its manifest and validator remain. The private `3.2.1-RC1` workbook track is not an Engine release artifact. See [provenance](docs/V3_2_1_RECONSTRUCTION_2026-09-03.md) and [privacy scope](docs/PRIVACY_SCOPE_2026-09-07.md).
+
+Earlier fixes and limitations are recorded in [0.2.2 release notes](docs/RELEASE_0.2.2.md), [repair changelog](docs/REPAIR_CHANGELOG_0.2.2.md), [known limitations](docs/KNOWN_LIMITATIONS_v0.2.md) and [CHANGELOG.md](CHANGELOG.md). Code uses [Apache-2.0](LICENSE); third-party source materials retain their original ownership.
+
+This is decision support. It does not replace current contract, financial, tax, insurance or safety advice.

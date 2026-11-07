@@ -6,6 +6,7 @@ GLASSBOX-AUTO uses **Semantic Versioning** for the headless engine package.
 
 - `0.1.0` = first audited engine substrate release.
 - `0.2.0` = historical compatibility/parity infrastructure release: explicit source tracks, recovered v3 adapters, reconstructed 3.2.1-R validation and formula-level regression controls.
+- `0.3.0` = bounded public offer-checker beta, reusing the 0.2.2 economics implementation; no generic agent-ranking or provider certification claim.
 - `0.x` means the public schema/API may still change as historical parity and purchase support are added.
 - A breaking canonical schema/API change before 1.0 increments the minor version.
 - Backward-compatible functionality increments minor; backward-compatible fixes increment patch where practical pre-1.0.
@@ -21,6 +22,7 @@ Short-lived branches:
 - `build/*` — implementation release candidates.
 - `validation/*` — parity, fixture, compatibility and independent verification work.
 - `fix/*` — narrowly scoped corrections to released behavior.
+- `release/*` — integrated public release preparation and verification.
 - `data/*` — source/ingestion updates that do not alter decision semantics.
 - `research/*` — explicitly non-authoritative experiments.
 
@@ -40,7 +42,7 @@ Data-only work must preserve provenance and may not silently change scoring, sta
 
 ## Release labels
 
-Current release candidate: Engine `0.2.0`.
+Current package: `0.3.0`; activation requires the reviewed implementation and all CI gates on the same `main` commit. See `PRODUCTION_READINESS.md`.
 
 Historical compatibility claims must be explicit:
 
@@ -61,6 +63,6 @@ When a historical artifact cannot be recovered, a replacement may be generated o
 - its fingerprint and validation contract are published;
 - later recovery of the historical artifact triggers a fresh parity comparison rather than replacement of provenance.
 
-## Next branch after Engine 0.2.0
+## Separate purchase scope
 
-Do not fold purchase/new-buy/used-buy economics into the historical-parity branch. The next implementation branch should start only after the original Acquisition/Purchase P1-P3 findings and purchase Economics anchors are recovered or re-adjudicated explicitly.
+Do not fold purchase/new-buy/used-buy economics into historical parity or the public offer-checker release. Purchase implementation should start only after the original Acquisition/Purchase P1-P3 findings and purchase Economics anchors are recovered or re-adjudicated explicitly. This does not block independent leasing-interface work.

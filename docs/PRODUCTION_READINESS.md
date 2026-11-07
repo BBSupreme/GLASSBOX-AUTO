@@ -1,106 +1,76 @@
-# Production Readiness — GLASSBOX-AUTO
+# Release readiness — GLASSBOX-AUTO
 
-**Release line:** Engine 0.2.x  
-**Version represented by this tree:** 0.2.2  
-**Activation rule:** release candidate until the reviewed tree is on `main` and all go-live gates pass on that exact `main` commit  
-**Scope:** leasing decision engine and recovered-v3 compatibility
+**Package represented by this tree: 0.3.0.** The public interface is a bounded
+offer-checker beta. It reuses the Engine 0.2.2 economics implementation; historical
+scoring and compatibility APIs retain their existing semantics.
 
-## 1. What "live" means
+## Activation
 
-A release is live when all of the following are true:
+A feature branch is a release candidate. The beta is available on the release
+line only when the reviewed implementation is on `main` and the following checks
+pass on that same commit:
 
-1. `main` contains the reviewed implementation;
-2. core, historical-compatibility, release-integrity and all full-regression runtime jobs are green on the same commit;
-3. package metadata, runtime `__version__` and release notes agree;
-4. no P0/P1 release blocker is open for the leasing scope;
-5. historical/reconstructed artifacts preserve provenance and claim boundaries;
-6. known limitations are public and do not silently change recommendation semantics;
-7. the repair has a separately executed review, with any findings resolved or explicitly classified, bound to the reviewed source. Builder self-review and green CI alone are not independent approval.
+| Gate | Required evidence |
+|---|---|
+| Core engine | Existing scoring, gate, identity, numerical and economics contracts pass |
+| Historical compatibility | Recovered-v3 and preserved reconstruction provenance tests pass |
+| Public offer interface | Strict transport, confirmation, arithmetic, unknowns, evidence boundaries and adversarial tests pass |
+| Package | Wheel and source distribution build; installed CLI works outside the checkout; schemas and synthetic examples are included |
+| Runtime matrix | Complete regression passes on Python 3.11, 3.12, 3.13 and 3.14 |
+| Separate review | Independent validity and reliability reviews inspect the actual implementation; material findings are fixed and regression-tested |
+| User journey | Documented example is actually executed; capability denial is explicit; no invented engine execution or source verification |
+| Public contents | No private request, quote, household profile, credential or private workbook is introduced |
 
-A green feature or patch branch is a release candidate, not a live release. Once the same reviewed tree is on `main` and satisfies all gates above, this document describes the live 0.2.2 release without requiring a status-text rewrite. New counterevidence reopens the affected gate even if an older run was green.
+Package version or old CI success alone is not release evidence. PR checks can
+run on a synthetic merge commit: record that distinction and verify main-push CI
+after a merge. New material counterevidence reopens the affected gate.
 
-"Live" does **not** mean that every future acquisition mode is implemented. `BUY_NEW` and `BUY_USED` remain outside the leasing production boundary until their method is source-backed and separately released.
+The exact workflow run and reviewed source revision are recorded in the release
+PR. Automated tests and agent walkthroughs are not a human usability study or
+certification of all AI providers. See [release scope](RELEASE_0.3.0.md).
 
-## 2. Go-live gates
+## What users can rely on
 
-| Gate | Requirement | 0.2.x status |
-|---|---|---|
-| Core contracts | scoring, weights, gates, evidence, economics and ranking tests pass | REQUIRED |
-| Gate semantics | `FAIL` is ineligible; decision-critical `UNKNOWN` is rank-eligible but `NOT_READY` by default; strict fail-closed ranking is explicit opt-in | REQUIRED from 0.2.1 |
-| Readiness integrity | inclusive bands, unambiguous identity/duplicate rejection and finite valid calculation results | REQUIRED from 0.2.2 |
-| Historical compatibility | recovered-v3 / 3.2.1-R parity and difference tests pass | REQUIRED |
-| Release integrity | package compiles; wheel metadata and runtime version agree; provenance guard passes | REQUIRED |
-| Full regression | every repository test passes on Python 3.11/3.12/3.13/3.14 after the classified jobs | REQUIRED |
-| Purchase fail-closed | unsupported purchase modes cannot masquerade as production economics | REQUIRED |
-| Provenance | `3.2.1-R` cannot be relabelled as historical byte-identical v3.2.1 | REQUIRED |
-| PC-01 disclosure | close-call coverage authority conflict remains explicit until source evidence resolves it | REQUIRED |
+For the supported constant-payment DKK lease schedule, the checker calculates
+from the entered values, preserves unknowns and records the inputs/code identity.
+It distinguishes a recurring payment, an average over the full contract,
+non-monthly initial cash and a refundable deposit. Extra-mileage arithmetic is
+a scenario, not permission to exceed contractual mileage.
 
-Any failure in these gates is a release blocker. Do not weaken a test merely to restore green.
+Source assertions remain **UNVERIFIED**. A URL, date, hash or human confirmation
+does not establish truth. `CALCULATED_FROM_INPUTS`, exit 0 and a within-budget
+comparison are not a vehicle recommendation or a claim of affordability.
+The complete request must be shown and confirmed in the interaction; its hash
+only detects changes. An AI without actual execution capability must say
+`UNEXECUTED` and may help prepare inputs or explain the method.
 
-## 3. CI incident classification
+## Scope that stays separate
 
-GitHub Actions uses four named categories so notification emails identify the failure domain:
+- The broader generic ranking/agent interface in PR #10 is not completed by this
+  narrower contract. Its generic pilot and provider-conformance claims remain open.
+- `BUY_NEW` and `BUY_USED` remain method-blocked. Their P1–P3 findings and purchase
+  anchors must be recovered or replaced by a separate, source-backed decision.
+- PC-01 remains explicit: Revision A weight coverage and recovered-v3 critical
+  evidence coverage are different source tracks. The offer checker does not rank
+  or run close-call policy and cannot resolve that historical question.
+- The engine does not scrape a live catalogue or establish offer availability,
+  real-world range, safety, family fit or full ownership cost.
+- `3.2.1-R` is historical reconstructed evidence, not byte-identical historical
+  v3.2.1. Its public binary distribution was retired on 2026-09-06. Preserve the
+  existing manifest and hashes; do not publish the private `3.2.1-RC1` package.
+- Ordinary attribution and inspected historical comparisons are accepted under
+  [the existing privacy scope](PRIVACY_SCOPE_2026-09-07.md). This does not authorize
+  publishing new private profiles or source packages.
 
-- `contracts / core engine` — canonical engine semantics;
-- `contracts / recovered v3 compatibility` — historical source-track and parity surface;
-- `release / integrity and wheel smoke` — packaging, version and provenance;
-- `regression / full suite (Python ...)` — complete tests on each declared regression runtime.
+## CI failures
 
-When a job fails:
+Open the failed job and classify the cause: implementation regression,
+intended falsifier, source conflict, environment/tooling problem or corrupted
+artifact. Fix that cause and retain the regression test. Do not weaken a test
+or repeatedly rerun it merely to restore green. A failed package check is a
+release blocker even when the arithmetic suite passes.
 
-1. read the failing test and short traceback;
-2. classify it as implementation regression, intended falsifier, source conflict, environment/tooling failure or corrupted artifact;
-3. fix the cause or document the source conflict;
-4. add/retain a regression test;
-5. require a green run on the new head before merge.
-
-A re-run without a diagnosis is not evidence of correctness. PR workflows may test a synthetic merge commit; record that SHA/tree rather than calling it a production merge. Verify fresh main-push CI after the actual merge.
-
-## 4. Gate and recommendation claim boundary
-
-Binding Revision A D-V3.25 separates eligibility from readiness:
-
-- gate `FAIL` → ineligible;
-- decision-critical gate `UNKNOWN` may remain in the ranking, but cannot be READY;
-- non-critical gaps affect Confidence/evidence rather than readiness;
-- a stricter fail-closed ranking policy is allowed only when explicitly requested by the caller and must not be described as the canonical Revision A default.
-
-This distinction is decision-relevant: `UNKNOWN` means "insufficient evidence to be ready," not "known failure."
-
-The 0.2.2 score-gap comparison uses the numerical boundary policy documented in `REPAIR_CHANGELOG_0.2.2.md`: absolute 1e-12 score points, zero relative tolerance, no display rounding. The exact 0.95 coverage switch is unchanged. Non-finite arithmetic is an explicit error, not missing evidence.
-
-## 5. Release claim boundary
-
-Allowed production claim after a version is merged and green on its exact `main` commit:
-
-> GLASSBOX-AUTO Engine 0.2.x is a tested, auditable leasing decision-engine substrate with explicit recovered-v3 compatibility controls and preserved 3.2.1-R reconstruction provenance.
-
-Not allowed:
-
-- calling an unmerged candidate live;
-- historical v3.2.1 byte parity;
-- live-market freshness unless offer evidence was actually refreshed;
-- production purchase/new-buy/used-buy economics;
-- VERIFIED evidence derived from assumptions or inferred data;
-- describing decision-critical `UNKNOWN` as a failed gate under the canonical Revision A policy;
-- calling this repair a completed agent interface, end-user pilot or cross-provider certification.
-
-## 6. Workbook artifact status
-
-`3.2.1-R` remains fingerprinted historical reconstruction evidence. Its manifest, reconstruction record and validator stay protected by release-integrity checks.
-
-The planned public import/distribution of the reconstructed XLSX was **retired on 2026-09-06**. The retirement does not alter its pinned SHA-256 or provenance claim; it means the raw workbook is no longer a release/distribution task. Do not create a Git/LFS allowlist, release asset or replacement hash merely to publish it.
-
-The separate private `3.2.1-RC1` workbook review track is not an Engine release artifact. Any future public demo workbook needs synthetic inputs, its own fingerprint and fresh QA. The bounded attribution decision in `PRIVACY_SCOPE_2026-09-07.md` is not permission to publish private source packages.
-
-## 7. Operational decision
-
-The leasing engine can be released independently of:
-
-- recovery of the missing historical v3.2.1 binary/harness;
-- public distribution of the retired `3.2.1-R` binary;
-- purchase-layer P1-P3 and Economics anchors;
-- future live-market ingestion/frontends;
-- completion of the separate private RC1 workbook review.
-
-Those items must not be represented as completed production scope unless their own gates are satisfied.
+The underlying engine still follows Revision A: gate `FAIL` is ineligible;
+decision-critical `UNKNOWN` can be rank-eligible but never `READY`. A stricter
+fail-closed policy remains explicit opt-in. The 0.2.2 inclusive score-gap
+round-off allowance and exact 95% coverage switch are unchanged.
