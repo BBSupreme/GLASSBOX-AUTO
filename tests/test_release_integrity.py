@@ -3,12 +3,12 @@ import glassbox_auto
 from glassbox_auto.release_integrity import check_release_integrity
 
 
-def test_release_integrity_v0_2_2_is_green():
-    assert check_release_integrity("0.2.2") == []
+def test_release_integrity_current_version_is_green():
+    assert check_release_integrity("0.3.0") == []
 
 
 def test_runtime_version_matches_release_candidate():
-    assert glassbox_auto.__version__ == "0.2.2"
+    assert glassbox_auto.__version__ == "0.3.0"
 
 
 def test_release_integrity_fails_wrong_expected_version():

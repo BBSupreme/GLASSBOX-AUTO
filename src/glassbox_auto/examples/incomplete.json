@@ -1,0 +1,38 @@
+{
+  "schema_version": "offer-check-request.v1",
+  "policy_id": "dk-private-lease.v1",
+  "assessment_at": "2026-11-07T10:00:00Z",
+  "profile": {
+    "expected_annual_km": 15000,
+    "max_initial_non_monthly_dkk": 20000,
+    "max_monthly_dkk": 5000,
+    "monthly_budget_basis": "LEASE_AND_INSURANCE"
+  },
+  "confirmation": null,
+  "offers": [
+    {
+      "offer_id": "synthetic-a",
+      "vehicle": "Synthetic family EV A",
+      "mode": "LEASE_NEW",
+      "currency": "DKK",
+      "source": {
+        "kind": "SYNTHETIC",
+        "locator": "Synthetic fixture, not a market offer",
+        "url": null,
+        "observed_on": "2026-11-07",
+        "valid_until": null,
+        "conflict": false
+      },
+      "term_months": 36,
+      "monthly_payment_count": 36,
+      "annual_km": 15000,
+      "upfront_payment_dkk": 15000,
+      "monthly_payment_dkk": 3500,
+      "mandatory_fees_dkk": null,
+      "fees_upfront_dkk": null,
+      "refundable_deposit_dkk": 0,
+      "monthly_insurance_dkk": null,
+      "overage_dkk_per_km": 1.5
+    }
+  ]
+}

@@ -2,7 +2,7 @@ name: engine-ci
 
 on:
   push:
-    branches: [main, "build/**", "validation/**", "hardening/**", "fix/**", "rebuild/**"]
+    branches: [main, "build/**", "validation/**", "hardening/**", "fix/**", "rebuild/**", "release/**"]
   pull_request:
     branches: [main]
 
@@ -26,7 +26,7 @@ jobs:
         with:
           python-version: "3.11"
       - name: Install package and pinned test runner
-        run: python -m pip install -e . pytest==9.1.1
+        run: python -m pip install -e ".[test]"
       - name: Run core contract tests
         run: >-
           pytest -ra --tb=short
@@ -53,7 +53,7 @@ jobs:
         with:
           python-version: "3.11"
       - name: Install package and pinned test runner
-        run: python -m pip install -e . pytest==9.1.1
+        run: python -m pip install -e ".[test]"
       - name: Run recovered-v3 and parity tests
         run: >-
           pytest -ra --tb=short
@@ -90,8 +90,8 @@ jobs:
           /tmp/glassbox-release-smoke/bin/python - <<'PY'
           from importlib.metadata import version
           import glassbox_auto
-          assert version("glassbox-auto") == "0.2.2"
-          assert glassbox_auto.__version__ == "0.2.2"
+          assert version("glassbox-auto") == "0.3.0"
+          assert glassbox_auto.__version__ == "0.3.0"
           print("wheel import/version smoke: PASS")
           PY
       - name: Compile package source
@@ -99,9 +99,13 @@ jobs:
       - name: Check release provenance and version through built wheel
         run: >-
           /tmp/glassbox-release-smoke/bin/python -m glassbox_auto.release_integrity
-          --expected-version 0.2.2 --root .
+          --expected-version 0.3.0 --root .
       - name: Test release-integrity guard
         run: pytest -ra --tb=short tests/test_release_integrity.py
+      - name: Run installed CLI outside the checkout
+        run: /tmp/glassbox-release-smoke/bin/python scripts/smoke_offer_checker.py
+      - name: Check installed dependency consistency
+        run: /tmp/glassbox-release-smoke/bin/python -m pip check
       - name: Explain failure class
         if: failure()
         run: |
@@ -109,10 +113,23 @@ jobs:
           echo "Wheel build/install, package version, compileability, or 3.2.1-R provenance guard failed." >> "$GITHUB_STEP_SUMMARY"
           echo "This is a release blocker even if scoring tests are green." >> "$GITHUB_STEP_SUMMARY"
 
+  offer-interface:
+    name: "contracts / public offer checker"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+      - name: Install package and pinned test runner
+        run: python -m pip install -e ".[test]"
+      - name: Test public input, economics and execution boundaries
+        run: pytest -ra --tb=short tests/test_offer*.py
+
   full-regression:
     name: "regression / full suite (Python ${{ matrix.python }})"
     runs-on: ubuntu-latest
-    needs: [core-contracts, historical-compatibility, release-integrity]
+    needs: [core-contracts, historical-compatibility, release-integrity, offer-interface]
     strategy:
       fail-fast: false
       matrix:
@@ -123,7 +140,7 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       - name: Install package and pinned test runner
-        run: python -m pip install -e . pytest==9.1.1
+        run: python -m pip install -e ".[test]"
       - name: Run every test
         run: pytest -ra --tb=short
       - name: Publish green summary

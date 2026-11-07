@@ -2,6 +2,19 @@
 
 All notable engine changes are documented here. Historical workbook version labels are tracked separately from package Semantic Versioning.
 
+## 0.3.0 — public offer-checker beta, prepared 2026-11-07
+
+Activation requires independent review and all CI gates on the reviewed `main` commit. See `docs/RELEASE_0.3.0.md` for scope and evidence.
+
+- Add an offline JSON CLI for entered Danish new-car private-leasing offers, using the existing engine economics.
+- Add closed versioned schemas, explicit unknown values, complete-request confirmation, deterministic request/result digests and installed-code identity.
+- Separate recurring rent, averaged contract payment, upfront non-monthly cash, refundable deposits, insurance and extra-mileage scenarios.
+- Reject unsupported schedules, invalid numbers/dates, stale confirmation, unknown fields and unsupported acquisition modes; preserve missing fees and other unknowns.
+- Bound input sizes and evaluation time; publish output atomically without overwriting an existing file.
+- Add synthetic examples, Danish and English AI quickstarts, agent instructions and a Reddit draft, plus independent validity/transport regression checks and installed-wheel CLI smoke.
+
+This beta does not validate source truth, recommend a vehicle, provide a live offer catalogue, enable purchase economics, or certify other AI providers. The broader PR #10 scoring interface and private workbook tracks remain separate. Core scoring and historical provenance are unchanged.
+
 ## 0.2.2 — candidate prepared 2026-09-07
 
 Activation requires a separate review, full same-commit CI and the reviewed merge on `main`. This entry and package metadata do not claim a published release.

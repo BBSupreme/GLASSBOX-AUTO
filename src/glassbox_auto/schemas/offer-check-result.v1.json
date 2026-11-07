@@ -1,0 +1,616 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:glassbox-auto:offer-check-result:v1",
+  "$defs": {
+    "decision": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": "offer-check-result.v1"
+        },
+        "request_schema_version": {
+          "const": "offer-check-request.v1"
+        },
+        "policy_id": {
+          "const": "dk-private-lease.v1"
+        },
+        "canonicalization": {
+          "const": "GBX-PYJSON-1"
+        },
+        "engine_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "code_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "assessment_at": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"
+        },
+        "normalized_request_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "confirmed_request_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "profile_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "profile": {
+          "type": "object",
+          "properties": {
+            "expected_annual_km": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0,
+              "maximum": 200000
+            },
+            "max_initial_non_monthly_dkk": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0,
+              "maximum": 10000000,
+              "x-decimal-places": 2,
+              "description": "Decimal precision is checked exactly by the Python semantic validator."
+            },
+            "max_monthly_dkk": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0,
+              "maximum": 10000000,
+              "x-decimal-places": 2,
+              "description": "Decimal precision is checked exactly by the Python semantic validator."
+            },
+            "monthly_budget_basis": {
+              "enum": [
+                "LEASE_ONLY",
+                "LEASE_AND_INSURANCE"
+              ]
+            }
+          },
+          "required": [
+            "expected_annual_km",
+            "max_initial_non_monthly_dkk",
+            "max_monthly_dkk",
+            "monthly_budget_basis"
+          ],
+          "additionalProperties": false
+        },
+        "source_verification": {
+          "const": "UNVERIFIED"
+        },
+        "recommendation": {
+          "const": "NOT_ASSESSED"
+        },
+        "offers": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 250,
+          "items": {
+            "type": "object",
+            "properties": {
+              "offer_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256
+              },
+              "vehicle": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256
+              },
+              "calculation_status": {
+                "enum": [
+                  "INCOMPLETE_INPUTS",
+                  "CALCULATED_FROM_INPUTS"
+                ]
+              },
+              "source_verification": {
+                "const": "UNVERIFIED"
+              },
+              "recommendation": {
+                "const": "NOT_ASSESSED"
+              },
+              "inputs": {
+                "type": "object",
+                "properties": {
+                  "offer_id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 256
+                  },
+                  "vehicle": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 256
+                  },
+                  "mode": {
+                    "enum": [
+                      "LEASE_NEW",
+                      "BUY_NEW",
+                      "BUY_USED"
+                    ]
+                  },
+                  "currency": {
+                    "type": "string",
+                    "pattern": "^[A-Z]{3}$"
+                  },
+                  "source": {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "enum": [
+                          "SYNTHETIC",
+                          "USER_SUPPLIED"
+                        ]
+                      },
+                      "locator": {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "minLength": 1,
+                        "maxLength": 1024
+                      },
+                      "url": {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "format": "uri",
+                        "maxLength": 8192
+                      },
+                      "observed_on": {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "format": "date"
+                      },
+                      "valid_until": {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "format": "date"
+                      },
+                      "conflict": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "locator",
+                      "url",
+                      "observed_on",
+                      "valid_until",
+                      "conflict"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "term_months": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "minimum": 1,
+                    "maximum": 120
+                  },
+                  "monthly_payment_count": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "minimum": 1,
+                    "maximum": 120
+                  },
+                  "annual_km": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "minimum": 1,
+                    "maximum": 200000
+                  },
+                  "upfront_payment_dkk": {
+                    "type": [
+                      "number",
+                      "null"
+                    ],
+                    "minimum": 0,
+                    "maximum": 10000000,
+                    "x-decimal-places": 2,
+                    "description": "Decimal precision is checked exactly by the Python semantic validator."
+                  },
+                  "monthly_payment_dkk": {
+                    "type": [
+                      "number",
+                      "null"
+                    ],
+                    "minimum": 0,
+                    "maximum": 10000000,
+                    "x-decimal-places": 2,
+                    "description": "Decimal precision is checked exactly by the Python semantic validator."
+                  },
+                  "mandatory_fees_dkk": {
+                    "type": [
+                      "number",
+                      "null"
+                    ],
+                    "minimum": 0,
+                    "maximum": 10000000,
+                    "x-decimal-places": 2,
+                    "description": "Decimal precision is checked exactly by the Python semantic validator."
+                  },
+                  "fees_upfront_dkk": {
+                    "type": [
+                      "number",
+                      "null"
+                    ],
+                    "minimum": 0,
+                    "maximum": 10000000,
+                    "x-decimal-places": 2,
+                    "description": "Decimal precision is checked exactly by the Python semantic validator."
+                  },
+                  "refundable_deposit_dkk": {
+                    "type": [
+                      "number",
+                      "null"
+                    ],
+                    "minimum": 0,
+                    "maximum": 10000000,
+                    "x-decimal-places": 2,
+                    "description": "Decimal precision is checked exactly by the Python semantic validator."
+                  },
+                  "monthly_insurance_dkk": {
+                    "type": [
+                      "number",
+                      "null"
+                    ],
+                    "minimum": 0,
+                    "maximum": 10000000,
+                    "x-decimal-places": 2,
+                    "description": "Decimal precision is checked exactly by the Python semantic validator."
+                  },
+                  "overage_dkk_per_km": {
+                    "type": [
+                      "number",
+                      "null"
+                    ],
+                    "minimum": 0,
+                    "maximum": 100,
+                    "x-decimal-places": 6,
+                    "description": "Decimal precision is checked exactly by the Python semantic validator."
+                  }
+                },
+                "required": [
+                  "offer_id",
+                  "vehicle",
+                  "mode",
+                  "currency",
+                  "source"
+                ],
+                "additionalProperties": false
+              },
+              "source": {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "SYNTHETIC",
+                      "USER_SUPPLIED"
+                    ]
+                  },
+                  "locator": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "minLength": 1,
+                    "maxLength": 1024
+                  },
+                  "url": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "uri",
+                    "maxLength": 8192
+                  },
+                  "observed_on": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "date"
+                  },
+                  "valid_until": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "date"
+                  },
+                  "conflict": {
+                    "type": "boolean"
+                  },
+                  "age_days": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "minimum": 0
+                  },
+                  "expired": {
+                    "type": [
+                      "boolean",
+                      "null"
+                    ]
+                  },
+                  "verification": {
+                    "const": "UNVERIFIED"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "locator",
+                  "url",
+                  "observed_on",
+                  "valid_until",
+                  "conflict",
+                  "age_days",
+                  "expired",
+                  "verification"
+                ],
+                "additionalProperties": false
+              },
+              "economics": {
+                "type": "object",
+                "properties": {
+                  "base_contract_cost_dkk": {
+                    "type": [
+                      "number",
+                      "null"
+                    ],
+                    "minimum": 0
+                  },
+                  "average_contract_cost_per_month_dkk": {
+                    "type": [
+                      "number",
+                      "null"
+                    ],
+                    "minimum": 0
+                  },
+                  "expected_mileage_cost_dkk": {
+                    "type": [
+                      "number",
+                      "null"
+                    ],
+                    "minimum": 0
+                  },
+                  "overage_cost_dkk": {
+                    "type": [
+                      "number",
+                      "null"
+                    ],
+                    "minimum": 0
+                  },
+                  "expected_total_km": {
+                    "type": [
+                      "number",
+                      "null"
+                    ],
+                    "minimum": 0
+                  },
+                  "contracted_total_km": {
+                    "type": [
+                      "number",
+                      "null"
+                    ],
+                    "minimum": 0
+                  },
+                  "under_mileage_refund_assumed_dkk": {
+                    "type": [
+                      "number",
+                      "null"
+                    ],
+                    "minimum": 0
+                  }
+                },
+                "required": [
+                  "base_contract_cost_dkk",
+                  "average_contract_cost_per_month_dkk",
+                  "expected_mileage_cost_dkk",
+                  "overage_cost_dkk",
+                  "expected_total_km",
+                  "contracted_total_km",
+                  "under_mileage_refund_assumed_dkk"
+                ],
+                "additionalProperties": false
+              },
+              "budget": {
+                "type": "object",
+                "properties": {
+                  "initial_non_monthly": {
+                    "type": "object",
+                    "properties": {
+                      "amount_dkk": {
+                        "type": [
+                          "number",
+                          "null"
+                        ],
+                        "minimum": 0
+                      },
+                      "limit_dkk": {
+                        "type": [
+                          "number",
+                          "null"
+                        ],
+                        "minimum": 0
+                      },
+                      "status": {
+                        "enum": [
+                          "NOT_REQUESTED",
+                          "UNKNOWN",
+                          "WITHIN_ENTERED_LIMIT",
+                          "EXCEEDS_ENTERED_LIMIT"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "amount_dkk",
+                      "limit_dkk",
+                      "status"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "recurring_monthly": {
+                    "type": "object",
+                    "properties": {
+                      "amount_dkk": {
+                        "type": [
+                          "number",
+                          "null"
+                        ],
+                        "minimum": 0
+                      },
+                      "limit_dkk": {
+                        "type": [
+                          "number",
+                          "null"
+                        ],
+                        "minimum": 0
+                      },
+                      "status": {
+                        "enum": [
+                          "NOT_REQUESTED",
+                          "UNKNOWN",
+                          "WITHIN_ENTERED_LIMIT",
+                          "EXCEEDS_ENTERED_LIMIT"
+                        ]
+                      },
+                      "basis": {
+                        "enum": [
+                          "LEASE_ONLY",
+                          "LEASE_AND_INSURANCE"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "amount_dkk",
+                      "limit_dkk",
+                      "status",
+                      "basis"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "initial_non_monthly",
+                  "recurring_monthly"
+                ],
+                "additionalProperties": false
+              },
+              "missing_fields": {
+                "type": "array",
+                "maxItems": 20,
+                "items": {
+                  "type": "string"
+                }
+              },
+              "warnings": {
+                "type": "array",
+                "maxItems": 30,
+                "items": {
+                  "type": "string",
+                  "pattern": "^[A-Z][A-Z0-9_]*$"
+                }
+              }
+            },
+            "required": [
+              "offer_id",
+              "vehicle",
+              "calculation_status",
+              "source_verification",
+              "recommendation",
+              "inputs",
+              "source",
+              "economics",
+              "budget",
+              "missing_fields",
+              "warnings"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "limitations": {
+          "type": "array",
+          "maxItems": 30,
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_]*$"
+          }
+        }
+      },
+      "required": [
+        "schema_version",
+        "request_schema_version",
+        "policy_id",
+        "canonicalization",
+        "engine_version",
+        "code_sha256",
+        "assessment_at",
+        "normalized_request_sha256",
+        "confirmed_request_sha256",
+        "profile_sha256",
+        "profile",
+        "source_verification",
+        "recommendation",
+        "offers",
+        "limitations"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "type": "object",
+  "properties": {
+    "decision": {
+      "$ref": "#/$defs/decision"
+    },
+    "decision_payload_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "transport": {
+      "type": "object",
+      "properties": {
+        "raw_request_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      },
+      "required": [
+        "raw_request_sha256"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "decision",
+    "decision_payload_sha256",
+    "transport"
+  ],
+  "additionalProperties": false
+}

@@ -1,5 +1,10 @@
 # Engine 0.2.0 — Known Limitations
 
+**Historical document.** Current public-interface limits and distribution status
+are in [PRODUCTION_READINESS.md](PRODUCTION_READINESS.md) and
+[RELEASE_0.3.0.md](RELEASE_0.3.0.md). In particular, the historical binary-import
+task below was retired on 2026-09-06; it is not an outstanding publishing task.
+
 **Release boundary:** historical compatibility infrastructure, not historical v3.2.1 proof and not purchase-mode release.
 
 ## P1 — Historical v3.2.1 remains unrecovered
